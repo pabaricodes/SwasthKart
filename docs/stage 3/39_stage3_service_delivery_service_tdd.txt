@@ -1,0 +1,28 @@
+STAGE 3 SERVICE TDD
+DELIVERY-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Python (FastAPI)
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Consumes OrderPlaced (v1).
+Publishes OrderHandedOff (v1).
+Implements Stage 2 admin endpoints for partners and routing rules.
+
+Responsibilities
+Partner selection; internal_tracking_id generation; partner handoff with retries; persist attempts; publish OrderHandedOff on success.
+
+Data model (owned)
+delivery_partners, routing_rules, handoffs, optional outbox.
+
+Hosting
+EKS Deployment; min 2 replicas; HPA; RDS Postgres Multi-AZ; worker queue recommended for retries; circuit breakers for outbound partner calls.
+
+Idempotency
+internal_tracking_id as idempotency key; duplicate OrderPlaced must not create duplicate handoffs.
+
+Observability
+Handoff success rate, partner latency/errors, retry exhaustion, backlog.
+
+Failure modes
+Partner outage => retry; terminal failure => alert ops; order remains PLACED.

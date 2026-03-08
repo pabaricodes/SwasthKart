@@ -1,0 +1,369 @@
+openapi: 3.0.3
+info:
+  title: Catalog Service API
+  version: 1.0.0
+  description: Public catalog APIs for listing and viewing products for SwasthKart.
+
+servers:
+  - url: /
+    description: Relative (API Gateway will provide base URL)
+
+tags:
+  - name: Catalog
+    description: Product discovery APIs
+
+paths:
+  /api/v1/catalog/products:
+    get:
+      tags: [Catalog]
+      summary: List products
+      description: |
+        Returns a paginated list of products with filter and sorting support.
+        Delivery is not user-scheduled; "instant" indicates same-day eligibility, otherwise earliestDeliveryDate is returned.
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Category'
+        - $ref: '#/components/parameters/ProductType'
+        - $ref: '#/components/parameters/DietType'
+        - $ref: '#/components/parameters/Availability'
+        - $ref: '#/components/parameters/SortBy'
+        - $ref: '#/components/parameters/SortOrder'
+        - $ref: '#/components/parameters/Search'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /api/v1/catalog/products/{productId}:
+    get:
+      tags: [Catalog]
+      summary: Get product details
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    Page:
+      name: page
+      in: query
+      required: false
+      description: 1-based page index
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      description: Page size (bounded)
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    Search:
+      name: q
+      in: query
+      required: false
+      description: Full-text search query for product name and keywords
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
+
+    Category:
+      name: category
+      in: query
+      required: false
+      description: Filter by category (ready-to-eat vs ingredients)
+      schema:
+        $ref: '#/components/schemas/ProductCategory'
+
+    ProductType:
+      name: productType
+      in: query
+      required: false
+      description: |
+        Filter by product type.
+        BOTH is allowed for items that are usable as ready-to-eat and as an ingredient.
+      schema:
+        $ref: '#/components/schemas/ProductType'
+
+    DietType:
+      name: dietType
+      in: query
+      required: false
+      description: Filter by dietary type
+      schema:
+        $ref: '#/components/schemas/DietType'
+
+    Availability:
+      name: availability
+      in: query
+      required: false
+      description: |
+        Delivery availability filter.
+        INSTANT means same-day eligible.
+        SCHEDULED means not same-day; earliestDeliveryDate is returned (user cannot pick a slot).
+      schema:
+        $ref: '#/components/schemas/AvailabilityType'
+
+    SortBy:
+      name: sortBy
+      in: query
+      required: false
+      description: Sorting field (new arrivals intentionally excluded)
+      schema:
+        type: string
+        enum: [POPULARITY_7D, PRICE, CALORIES, PROTEIN_G]
+        default: POPULARITY_7D
+
+    SortOrder:
+      name: sortOrder
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [ASC, DESC]
+        default: DESC
+
+  responses:
+    BadRequest:
+      description: Invalid input or query parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: Unexpected error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ProductCategory:
+      type: string
+      enum: [READY_TO_EAT, INGREDIENTS]
+
+    ProductType:
+      type: string
+      enum: [READY_TO_EAT, INGREDIENT, BOTH]
+
+    DietType:
+      type: string
+      enum: [VEG, NON_VEG, EGGETARIAN]
+
+    AvailabilityType:
+      type: string
+      enum: [INSTANT, SCHEDULED]
+
+    Money:
+      type: object
+      required: [currency, amount]
+      properties:
+        currency:
+          type: string
+          example: INR
+        amount:
+          type: integer
+          description: Amount in minor units (paise if INR)
+          example: 29900
+
+    NutritionInfo:
+      type: object
+      required: [calories, proteinG, carbsG, fatG]
+      properties:
+        calories:
+          type: integer
+          minimum: 0
+          example: 450
+        proteinG:
+          type: number
+          format: float
+          minimum: 0
+          example: 32
+        carbsG:
+          type: number
+          format: float
+          minimum: 0
+          example: 40
+        fatG:
+          type: number
+          format: float
+          minimum: 0
+          example: 15
+
+    DeliveryInfo:
+      type: object
+      required: [availability, instant, earliestDeliveryDate]
+      properties:
+        availability:
+          $ref: '#/components/schemas/AvailabilityType'
+        instant:
+          type: boolean
+          description: True when same-day eligible
+          example: true
+        earliestDeliveryDate:
+          type: string
+          format: date
+          description: Earliest possible delivery date (user cannot choose slot)
+          example: '2026-03-10'
+
+    ProductSummary:
+      type: object
+      required:
+        - productId
+        - name
+        - category
+        - productType
+        - dietType
+        - price
+        - popularity7dCount
+        - delivery
+        - isActive
+      properties:
+        productId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        category:
+          $ref: '#/components/schemas/ProductCategory'
+        productType:
+          $ref: '#/components/schemas/ProductType'
+        dietType:
+          $ref: '#/components/schemas/DietType'
+        price:
+          $ref: '#/components/schemas/Money'
+        nutrition:
+          $ref: '#/components/schemas/NutritionInfo'
+        popularity7dCount:
+          type: integer
+          minimum: 0
+          description: Number of times ordered in the last 7 days
+        delivery:
+          $ref: '#/components/schemas/DeliveryInfo'
+        isActive:
+          type: boolean
+
+    HowToUse:
+      type: object
+      required: [instructions]
+      properties:
+        instructions:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        servingSuggestions:
+          type: array
+          items:
+            type: string
+            maxLength: 200
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          required: [description, contents, howToUse]
+          properties:
+            description:
+              type: string
+              maxLength: 4000
+            contents:
+              type: string
+              description: Ingredients / contents / allergens text
+              maxLength: 4000
+            howToUse:
+              $ref: '#/components/schemas/HowToUse'
+            images:
+              type: array
+              items:
+                type: string
+                format: uri
+            tags:
+              type: array
+              items:
+                type: string
+                maxLength: 40
+
+    ProductListResponse:
+      type: object
+      required: [page, pageSize, total, items]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSummary'
+
+    ProductDetailResponse:
+      type: object
+      required: [item]
+      properties:
+        item:
+          $ref: '#/components/schemas/ProductDetail'
+
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: INVALID_REQUEST
+        message:
+          type: string
+          example: Invalid query parameter: pageSize
+        details:
+          type: object
+          additionalProperties: true

@@ -1,0 +1,61 @@
+DOMAIN OWNERSHIP MATRIX (SYSTEM LEVEL)
+Fitness Nutrition Commerce Platform — MVP Release 1
+Amendment: Frontend Domain Added
+
+Principle
+- Each service owns its data store and is the only writer.
+- Other services access data via API (SYNC) or events (ASYNC). No shared DB writes.
+- Frontend owns presentation state and UI flows, but not business invariants or authoritative domain data.
+
+Identity domain
+Owner service: identity-service
+Source of truth: user profile, phone, addresses
+Writes by: identity-service only
+Reads by: bff-gateway and frontend-spa via api-gateway routed APIs
+
+Catalog domain
+Owner service: catalog-service
+Source of truth: product metadata, nutrition, allergens, price, active flag, popularity counters (derived)
+Writes by: catalog-service (admin CRUD), derived popularity update consumer
+Reads by: bff-gateway and frontend-spa via api-gateway routed APIs
+
+Inventory domain
+Owner service: inventory-service
+Source of truth: stock_qty by product and city, cutoff rules, earliest delivery computation, reservations if enabled
+Writes by: inventory-service only
+Reads by: cart-service (CheckStock) and optionally bff-gateway for PDP enrichment
+
+Cart domain
+Owner service: cart-service
+Source of truth: cart contents, price snapshots, validation results
+Writes by: cart-service only
+Reads by: bff-gateway and frontend-spa via api-gateway routed APIs
+
+Payment domain
+Owner service: payment-service
+Source of truth: payment attempts, provider refs, webhook status, idempotency ledger
+Writes by: payment-service only
+Reads by: bff-gateway and frontend-spa via api-gateway routed APIs (initiate only); order-service consumes PaymentSucceeded event
+
+Order domain
+Owner service: order-service
+Source of truth: orders, order items, order status transitions, internal_tracking_id, partner_reference_id (as stored)
+Writes by: order-service only
+Reads by: bff-gateway and frontend-spa via api-gateway routed APIs
+
+Delivery domain
+Owner service: delivery-service
+Source of truth: partner routing rules, handoff attempts, partner refs (canonical for delivery)
+Writes by: delivery-service only
+Reads by: order-service via OrderHandedOff event; admin views
+
+Frontend domain
+Owner component: frontend-spa
+Source of truth: presentation state, UI navigation flows, local UI cache, client-side error reporting
+Writes by: frontend-spa only (local state and telemetry; no authoritative domain writes)
+Reads by: none (not a source of truth for backend domains)
+Constraints: frontend-spa must not implement business invariants; backend remains authoritative for eligibility, availability, and state transitions.
+
+Admin capabilities
+Owner: business/ops; implemented through admin endpoints in the owning services (preferred)
+Rule: admin writes always go through service APIs, never direct DB access.

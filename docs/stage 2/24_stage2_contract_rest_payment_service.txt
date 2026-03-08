@@ -1,0 +1,36 @@
+STAGE 2 CONTRACT (REST)
+PAYMENT SERVICE — PUBLIC API CONTRACT (v1)
+Owner: payment-service
+Consumers: frontend-spa, bff-gateway, payment-provider
+Date: 2026-03-07
+
+Base Path
+/api/v1/payments
+
+Endpoints (Customer)
+POST /initiate
+Auth: JWT
+Request:
+- cart_id
+- address_id
+- currency (INR)
+- return_url
+Response:
+- payment_intent_id
+- provider_redirect_url
+- expires_at
+
+Endpoints (Webhook)
+POST /webhook/{provider}
+Auth: Provider signature verification (not JWT)
+Request: provider payload
+Response: 200 if accepted for processing
+
+Contract Requirements
+- webhook must be idempotent (provider_event_id dedupe)
+- webhook signature verification is mandatory
+- on success, payment-service publishes PaymentSucceeded event
+
+Error Envelope
+Customer endpoints must comply with standard error envelope.
+Webhook endpoints must not leak internal errors.

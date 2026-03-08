@@ -1,0 +1,27 @@
+STAGE 3 SERVICE TDD
+BFF-GATEWAY — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Node.js (TypeScript)
+Primary owner: Frontend/Platform
+Date: 2026-03-07
+
+Purpose
+Provide a stable, coarse-grained API surface aligned to UI screens, reduce client chattiness, normalize errors, and protect downstream services.
+
+Public APIs (via api-gateway)
+/api/v1/ui/pdp/{product_id}?pincode=...
+/api/v1/ui/cart
+/api/v1/ui/checkout/validate
+/api/v1/ui/payments/initiate
+/api/v1/ui/orders/{order_id}
+
+Downstream dependencies (SYNC)
+identity-service, catalog-service, cart-service, order-service, payment-service, optional inventory-service.
+
+Infrastructure and Deployment
+EKS Deployment, stateless; min 2 replicas; HPA; strict per-dependency timeouts; circuit breakers for dependency failures.
+
+Security and observability
+JWT forwarding/validation; standard error envelope; full tracing; no PII logging.
+
+Failure modes
+Composite endpoint fails fast unless UX explicitly supports partial responses.

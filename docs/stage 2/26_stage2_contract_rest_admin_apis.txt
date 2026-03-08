@@ -1,0 +1,38 @@
+STAGE 2 CONTRACT (REST)
+ADMIN APIS — PUBLIC ADMIN CONTRACT (v1)
+Owner: owning services routed via api-gateway
+Consumers: admin users only
+Date: 2026-03-07
+
+Base Path
+/api/v1/admin
+
+Authentication
+Admin requires MFA and admin role claim.
+
+Catalog Admin
+POST /catalog/products
+PUT /catalog/products/{product_id}
+POST /catalog/products/{product_id}/deactivate
+
+Inventory Admin
+POST /inventory/stock/bulk_import
+PUT /inventory/stock/{product_id}?city_code=...
+PUT /inventory/cutoff/{city_code}
+PUT /inventory/same_day_eligible/{product_id}?city_code=...
+
+Delivery Admin
+POST /delivery/partners
+PUT /delivery/partners/{partner_id}
+POST /delivery/routing_rules
+PUT /delivery/routing_rules/{rule_id}
+
+Orders Admin
+GET /orders
+POST /orders/{order_id}/refund
+POST /orders/{order_id}/cancel
+
+Error Envelope
+Must comply with Stage 2 standard error envelope.
+Audit Requirements
+All admin mutations must be audit-logged.

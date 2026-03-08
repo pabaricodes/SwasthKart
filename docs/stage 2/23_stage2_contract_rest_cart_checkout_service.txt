@@ -1,0 +1,45 @@
+STAGE 2 CONTRACT (REST)
+CART AND CHECKOUT VALIDATION — PUBLIC API CONTRACT (v1)
+Owner: cart-service
+Consumers: frontend-spa, bff-gateway
+Date: 2026-03-07
+
+Base Path
+/api/v1/cart
+
+Endpoints
+GET /me
+Auth: JWT
+Response: cart_id and items with snapshots and totals estimate
+
+POST /me/items
+Auth: JWT
+Request: product_id, qty
+Response: updated cart
+
+PUT /me/items/{item_id}
+Auth: JWT
+Request: qty
+Response: updated cart
+
+DELETE /me/items/{item_id}
+Auth: JWT
+Response: updated cart
+
+POST /me/validate
+Auth: JWT
+Request: address_id
+Response:
+- valid
+- errors (standardized)
+- delivery_type: SAME_DAY or LATER
+- earliest_delivery_date (ISO date)
+- instant_tag (true only if earliest_delivery_date = today)
+- priced_totals (estimate)
+
+Notes
+validate performs synchronous CheckStock call to inventory-service.
+validate must never initiate payment or create order.
+
+Error Envelope
+Must comply with Stage 2 standard error envelope.

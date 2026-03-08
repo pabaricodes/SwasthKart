@@ -1,0 +1,39 @@
+STAGE 2 CONTRACT (REST)
+CATALOG SERVICE — PUBLIC API CONTRACT (v1)
+Owner: catalog-service
+Consumers: frontend-spa, bff-gateway
+Date: 2026-03-07
+
+Base Path
+/api/v1/catalog
+
+Public Access
+All catalog read endpoints are public.
+
+Endpoints (Public)
+GET /products
+Query params (subset for MVP):
+- category: READY_TO_EAT or INGREDIENT
+- product_type: READY_TO_EAT or INGREDIENT or BOTH
+- diet_type: VEG or NON_VEG or EGG
+- min_protein_g, max_calories, min_price, max_price
+- allergens (repeatable)
+- sort: POPULARITY_7D, PRICE_ASC, PRICE_DESC, PROTEIN_DESC
+- page, page_size
+Response:
+- items: product summaries
+- pagination metadata
+
+GET /products/{product_id}
+Response:
+- full product detail including nutrition, allergens, how_to_use, popularity_7d_count, is_active
+
+Admin Endpoints (Restricted)
+POST /admin/products
+PUT /admin/products/{product_id}
+POST /admin/products/{product_id}/deactivate
+
+Error Envelope
+Must comply with Stage 2 standard error envelope.
+Caching Notes
+Safe GET endpoints may be cached at CDN only with explicit cache key rules.

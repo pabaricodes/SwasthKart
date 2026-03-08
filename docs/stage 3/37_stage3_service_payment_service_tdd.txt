@@ -1,0 +1,27 @@
+STAGE 3 SERVICE TDD
+PAYMENT-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Node.js
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Implements Stage 2 REST: Payment (v1).
+Publishes Stage 2 event: PaymentSucceeded (v1).
+
+Responsibilities
+Payment initiation; webhook verification; idempotent processing; publish PaymentSucceeded.
+
+Data model (owned)
+payments; webhook_dedupe; optional outbox.
+
+Hosting
+EKS Deployment; public webhook via api-gateway + WAF; RDS Postgres Multi-AZ; Secrets Manager via IRSA.
+
+Security
+Signature verification mandatory; no sensitive payload storage.
+
+Observability
+Webhook rate, signature failures, dedupe hits, publish failures, provider latency.
+
+Failure modes
+Provider down => initiation fails; publish failure => outbox retry.

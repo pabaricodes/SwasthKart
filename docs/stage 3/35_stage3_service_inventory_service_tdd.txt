@@ -1,0 +1,25 @@
+STAGE 3 SERVICE TDD
+INVENTORY-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Java (Spring Boot)
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Implements Stage 2 gRPC: Inventory.CheckStock (v1).
+Implements Stage 2 admin endpoints via api-gateway.
+
+Responsibilities
+Stock per product per city; cutoff rules; earliest delivery computation; concurrency control; optional reservations.
+
+Data model (owned)
+inventory, warehouse_rules, optional reservations.
+
+Hosting
+EKS Deployment; min 2 replicas; HPA; RDS Postgres Multi-AZ.
+Internal ClusterIP; optional Redis short-TTL cache.
+
+Observability
+CheckStock latency/errors; DB lock wait; invariant violations must be zero.
+
+Failure modes
+Inventory down blocks validate/checkout; browse continues.

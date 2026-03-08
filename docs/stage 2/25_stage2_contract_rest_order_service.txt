@@ -1,0 +1,29 @@
+STAGE 2 CONTRACT (REST)
+ORDER SERVICE — PUBLIC API CONTRACT (v1)
+Owner: order-service
+Consumers: frontend-spa, bff-gateway, admin-apis
+Date: 2026-03-07
+
+Base Path
+/api/v1/orders
+
+Endpoints (Customer)
+GET /me
+Auth: JWT
+Response: list of orders summary fields
+
+GET /me/{order_id}
+Auth: JWT
+Response:
+- order header fields
+- items
+- order_status
+- assigned_partner_id (optional)
+- internal_tracking_id (optional)
+- partner_reference_id (optional)
+
+Notes
+Order creation is not a public synchronous API in MVP; it is driven by PaymentSucceeded event consumption.
+
+Error Envelope
+Must comply with Stage 2 standard error envelope.

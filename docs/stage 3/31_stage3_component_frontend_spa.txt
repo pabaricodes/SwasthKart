@@ -1,0 +1,24 @@
+STAGE 3 COMPONENT DESIGN DOC
+FRONTEND SPA (REACT) — DESIGN AND DELIVERY SPEC
+Date: 2026-03-07
+
+Purpose
+Defines the React SPA as a deployable component: UI scope, contract consumption, build and hosting model, testing strategy, and operational requirements.
+
+Scope
+PLP, PDP, Cart, Checkout validation, Payment initiation and redirect handling, Order confirmation and Order detail pages; address selection; error and retry states; client observability.
+
+Hosting and Delivery
+Static assets with hashed filenames; S3 origin behind CloudFront; /api routes to API Gateway through CloudFront behavior; immutable assets long TTL; index.html short TTL and invalidated on deploy.
+
+Contracts (Stage 2)
+Consumes identity, catalog, cart, payments, orders REST contracts via api-gateway and standard error envelope.
+
+Security
+No PII in telemetry; JWT handled per platform decision (cookie preferred if BFF used).
+
+Testing
+Unit/component tests plus contract-aligned mocks plus E2E in staging.
+
+Release
+Independent SPA deploy with CloudFront invalidation; rollback via prior index.html restore.

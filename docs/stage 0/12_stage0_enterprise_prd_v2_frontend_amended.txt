@@ -1,0 +1,165 @@
+STAGE 0 GATE DOCUMENT
+ENTERPRISE PRODUCT REQUIREMENTS DOCUMENT (PRD)
+Fitness Nutrition Commerce Platform — MVP Release 1
+Amendment: Frontend and Edge Requirements Added
+Date: 2026-03-07
+
+Document Owner: Product
+Reviewers Required: Engineering Lead, Platform Architect, Security, Operations, Frontend Lead
+Status: Draft for Approval
+
+1. EXECUTIVE SUMMARY
+This document defines business objectives, scope, constraints, non-functional requirements, risk profile, and release success criteria for the Fitness Nutrition Commerce Platform MVP. The system enables customers to purchase Ready-to-eat meals and Ingredients with automated delivery partner assignment and same-day (“Instant”) eligibility based on inventory state. This PRD represents the Stage 0 SDLC gate. Engineering work must not begin until this document is approved.
+
+2. BUSINESS OBJECTIVES
+Primary Objectives:
+- Enable same-day commerce for fitness nutrition products.
+- Provide accurate earliest-delivery computation.
+- Ensure financially correct order and payment processing.
+- Build scalable architecture for multi-city expansion.
+
+Success Metrics (Release 1 Targets):
+- Checkout conversion rate ≥ 20%
+- Payment success rate ≥ 97%
+- Order creation success after payment ≥ 99%
+- Delivery handoff success rate ≥ 95%
+- System availability ≥ 99.9% monthly
+- P95 checkout validation latency ≤ 500ms (excluding payment provider redirect)
+- P95 payment webhook to order creation ≤ 2s
+
+3. IN-SCOPE FEATURES
+User Flows:
+- Guest browsing and PDP
+- OTP login
+- Address management
+- Add to cart
+- Checkout (no slot selection)
+- Payment integration
+- Order creation
+- Automatic delivery partner assignment
+- Admin management for products, inventory, routing rules
+
+System Capabilities:
+- Earliest delivery computation
+- “Instant” tag if same-day eligible
+- Inventory validation before order creation
+- Internal tracking ID generation
+- Delivery partner handoff (no live tracking in-app)
+
+Frontend Capabilities (explicitly in-scope):
+- React single-page application (SPA) hosted as static assets (S3) behind CDN (CloudFront)
+- Core screens: PLP, PDP, Cart, Checkout, Payment redirect handling, Order confirmation and Order details
+- Clear user-facing error states for inventory unavailability, payment initiation failure, and checkout validation failure
+- Address selection and pincode entry flow that drives earliest-delivery calculation
+- Client-side observability hooks (frontend errors and key funnel events)
+
+4. OUT OF SCOPE (MVP)
+- Subscription model
+- Loyalty programs
+- Real-time delivery tracking inside app
+- Advanced personalization
+- Multi-warehouse optimization beyond city level
+
+5. BUSINESS INVARIANTS (MUST NEVER BE VIOLATED)
+1. Inventory total_stock must never become negative.
+2. An order must not exist without successful payment confirmation.
+3. Delivery handoff must not occur without persisted order.
+4. Duplicate payment webhooks must not create duplicate orders.
+5. Same-day promise must not be shown after cutoff time.
+6. The frontend must not call internal microservice endpoints directly; all API access must be via the public API front door (API Gateway and approved routing layer).
+
+6. NON-FUNCTIONAL REQUIREMENTS
+Availability:
+- 99.9% uptime for public APIs (excluding third-party dependencies)
+- CDN availability depends on provider but must be monitored; user-visible outages must be alerted
+
+Latency:
+- P95 for read APIs (catalog) ≤ 200ms (backend time; excluding network)
+- P95 for checkout validation ≤ 500ms (backend time; excluding network)
+- Payment webhook to order creation ≤ 2s
+
+Scalability:
+- Initial target: 500 RPS aggregate API load
+- Architecture must support horizontal scaling via EKS HPA
+
+Consistency:
+- Orders and Payments require strong consistency.
+- Inventory must prevent overselling via transactional logic.
+
+Security:
+- All traffic encrypted via TLS.
+- JWT-based authentication.
+- Secrets stored in AWS Secrets Manager.
+- Admin access requires MFA.
+- CORS must allow only approved origins (SPA domain).
+
+Data Protection:
+- PII stored encrypted at rest (RDS encryption enabled).
+- Payment provider data must not be stored beyond reference IDs.
+- Logs must not contain raw card data.
+- Frontend analytics and logs must not include PII beyond approved identifiers (no full address, no OTP, no phone in plaintext).
+
+Frontend Performance and Compatibility (explicit NFRs):
+- SPA performance: P95 time-to-interactive target ≤ 3 seconds on mid-tier mobile network assumptions (to be baselined in staging).
+- Bundle size budget: define an initial budget and alert on regressions.
+- Browser support: latest Chrome/Edge/Firefox and Safari iOS current major versions for MVP (exact matrix owned by frontend lead).
+- CDN caching policy: cache static assets aggressively with immutable hashes; API responses cached only where safe and explicitly configured.
+- Error budget for frontend: track JS error rate and payment drop-offs as release health indicators.
+
+7. DATA CLASSIFICATION
+Public Data:
+- Product catalog metadata
+
+Sensitive Personal Data:
+- Phone number
+- Address details
+
+Financially Sensitive:
+- Payment reference IDs
+- Order totals
+
+All sensitive data must follow encryption-at-rest and least-privilege access controls. Frontend telemetry must be redacted and must not capture sensitive fields.
+
+8. SYSTEM RISKS AND MITIGATION
+Risk: Overselling inventory
+Mitigation: Transactional reservation or version-based concurrency control
+
+Risk: Duplicate payment webhooks
+Mitigation: Idempotency keys and webhook signature verification
+
+Risk: Delivery partner downtime
+Mitigation: Retry with exponential backoff + manual reconciliation queue
+
+Risk: Inventory-service outage
+Mitigation: Graceful degradation (no Instant tag; checkout validation required)
+
+Risk: Frontend cache invalidation causing stale UI or broken releases
+Mitigation: Hashed asset filenames, automated CloudFront invalidation on deploy, and health checks
+
+Risk: Frontend-backend contract drift
+Mitigation: Contract-first specs, generated clients/types, and contract tests in CI
+
+9. RELEASE STRATEGY
+Deployment:
+- Progressive rollout via canary for backend services
+- Independent deployability for SPA assets (CDN-backed) with controlled cache invalidation
+- Backward compatible contracts required for independent releases
+
+Monitoring Window:
+- 24–48 hours observation post-release
+
+Rollback Plan:
+- Rollback container images
+- Roll back SPA by reverting S3 version and invalidating CDN if needed
+- Reverse DB migration only if backward compatible
+- Disable feature flags if required
+
+10. ACCEPTANCE CRITERIA FOR STAGE 0 GATE
+Before moving to Stage 1 (Architecture Decomposition):
+- Business stakeholders approve scope and metrics
+- Engineering confirms invariants are implementable
+- Security signs off on data handling
+- Platform confirms scalability assumptions
+- Frontend lead confirms UI scope, performance targets approach, and contract dependency plan
+
+END OF DOCUMENT

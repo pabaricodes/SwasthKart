@@ -1,0 +1,122 @@
+openapi: 3.0.1
+info:
+  title: OpenAPI definition
+  version: v0
+servers:
+  - url: http://localhost:8082
+    description: Generated server url
+paths:
+  /api/v1/inventory/reservations:
+    post:
+      tags:
+        - reservation-controller
+      operationId: reserve
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReserveRequest'
+        required: true
+      responses:
+        "201":
+          description: Created
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReserveResponse'
+  /api/v1/inventory/stock:
+    get:
+      tags:
+        - stock-controller
+      operationId: getStock
+      parameters:
+        - name: skuId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: cityId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/StockResponse'
+  /api/v1/inventory/reservations/{reservationId}:
+    delete:
+      tags:
+        - reservation-controller
+      operationId: cancel
+      parameters: []
+      responses:
+        "204":
+          description: No Content
+components:
+  schemas:
+    Item:
+      required:
+        - skuId
+      type: object
+      properties:
+        skuId:
+          type: string
+          format: uuid
+        qty:
+          minimum: 1
+          type: integer
+          format: int32
+    ReserveRequest:
+      required:
+        - cartId
+        - cityId
+        - items
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        cartId:
+          type: string
+          format: uuid
+        cityId:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+    ReserveResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+          format: uuid
+        expiresAt:
+          type: string
+          format: date-time
+    StockResponse:
+      type: object
+      properties:
+        skuId:
+          type: string
+          format: uuid
+        cityId:
+          type: string
+        availableQty:
+          type: integer
+          format: int32
+        deliveryType:
+          type: string
+          enum:
+            - INSTANT
+            - SCHEDULED
+        instant:
+          type: boolean
+        earliestDeliveryDate:
+          type: string
+          format: date

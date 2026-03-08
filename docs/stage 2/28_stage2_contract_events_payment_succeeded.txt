@@ -1,0 +1,21 @@
+STAGE 2 CONTRACT (EVENT)
+EVENT: PaymentSucceeded (v1)
+Owner: payment-service
+Primary consumer: order-service
+Date: 2026-03-07
+
+When emitted
+After verified successful payment webhook and idempotency check. Duplicates possible.
+
+Required fields
+event_name, event_id, payment_id, provider, provider_reference_id,
+order_context_id, user_id, amount, currency, occurred_at
+
+Optional fields
+metadata
+
+Idempotency key recommendation
+payment_id or provider_event_id
+
+Compatibility rules
+Additive only; consumers tolerate unknown fields.

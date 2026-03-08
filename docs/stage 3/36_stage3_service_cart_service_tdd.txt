@@ -1,0 +1,25 @@
+STAGE 3 SERVICE TDD
+CART-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Node.js
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Implements Stage 2 REST: Cart and validate (v1).
+Calls Stage 2 gRPC: Inventory.CheckStock (v1).
+
+Responsibilities
+Cart state and snapshots; validation orchestration; priced totals estimate.
+
+Data model (owned)
+Redis carts; optional audit log.
+
+Hosting
+EKS Deployment; min 2 replicas; HPA.
+ElastiCache Redis Multi-AZ; exposed via api-gateway.
+
+Observability
+Redis errors, validate latency, dependency latency to inventory.
+
+Failure modes
+Redis down => cart unavailable; inventory down => validation fails; do not proceed to payment.

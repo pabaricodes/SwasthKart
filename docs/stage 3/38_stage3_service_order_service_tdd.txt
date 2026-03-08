@@ -1,0 +1,29 @@
+STAGE 3 SERVICE TDD
+ORDER-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Java (Spring Boot)
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Implements Stage 2 REST: Orders (v1).
+Consumes PaymentSucceeded (v1).
+Publishes OrderPlaced (v1).
+Consumes OrderHandedOff (v1).
+
+Responsibilities
+Order record and lifecycle; idempotent creation on PaymentSucceeded; publish OrderPlaced; status update on OrderHandedOff.
+
+Data model (owned)
+orders, order_items, outbox.
+
+Hosting
+EKS Deployment; min 2 replicas; HPA; RDS Postgres Multi-AZ.
+
+Idempotency
+payment_id or order_context_id prevents duplicates.
+
+Observability
+Creation success after payment, idempotency collisions, outbox lag, read latency.
+
+Failure modes
+Consumer retries must not create duplicates; delivery failures keep order PLACED until policy action.

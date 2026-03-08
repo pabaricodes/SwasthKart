@@ -1,0 +1,109 @@
+STAGE 1 GATE DOCUMENT
+ARCHITECTURE AND DOMAIN DECOMPOSITION (SYSTEM LEVEL)
+Fitness Nutrition Commerce Platform — MVP Release 1
+Amendment: Frontend and BFF Placement Clarified
+Date: 2026-03-07
+
+Document Owner: Architecture/Engineering
+Inputs: Stage 0 Enterprise PRD (amended)
+Outputs: System-level interaction maps, event flow, ownership boundaries, state machines, sequence flows
+Status: Draft for Approval
+
+1) Purpose
+Convert the Stage 0 PRD into a system decomposition that enables parallel service development with clear ownership, communication paths, and state transitions. This artifact is system-level and applies across all microservices and the frontend component(s).
+
+2) Components in scope (public names used across all artifacts)
+Edge and frontend:
+- frontend-spa (React SPA static assets)
+- cloudfront (CDN)
+- s3-static-origin (SPA hosting origin)
+- api-gateway (AWS API Gateway public API front door)
+- alb-ingress (ALB + EKS Ingress for cluster routing)
+- bff-gateway (optional but recommended; backend-for-frontend aggregator behind api-gateway)
+
+Core domain services:
+- identity-service
+- catalog-service
+- inventory-service
+- cart-service
+- order-service
+- payment-service
+- delivery-service
+
+Admin capability exposure:
+- admin-apis (implemented as admin endpoints per domain service and/or an admin-service façade)
+
+Shared platform components:
+- event-bus
+- schema-registry
+- rds-postgres (per-service logical DBs)
+- redis (cart primary store; optional cache for others)
+- secrets-manager
+- observability stack (logs/metrics/traces, plus frontend error collection)
+
+3) Frontend interaction model (system-level decision)
+- frontend-spa must call only the public API surface exposed via api-gateway (same domain behind cloudfront is preferred).
+- frontend-spa must not call internal microservice endpoints directly.
+- BFF policy:
+  - Recommended default: use bff-gateway to aggregate calls for UI screens (PDP, Cart, Checkout) to reduce chatty client behavior and to stabilize the public contract.
+  - Alternative (allowed): api-gateway routes directly to domain services for read-heavy endpoints if the contract is stable and performance acceptable.
+- The chosen approach must be consistent per endpoint category and documented in the service interaction map.
+
+4) Domain decomposition (what each domain owns at a business level)
+Identity domain: user and address source of truth.
+Catalog domain: product metadata and nutrition source of truth.
+Inventory domain: stock and earliest delivery computation source of truth.
+Cart domain: cart state and validation orchestration source of truth.
+Payment domain: payment initiation and webhook truth source of truth.
+Order domain: order record, order lifecycle source of truth.
+Delivery domain: partner routing rules, handoff attempts, partner reference source of truth.
+Frontend domain: presentation state, UI flows, and user experience source of truth (not business invariants).
+
+5) Communication model decisions (system-level)
+- External/public: browser -> cloudfront -> api-gateway (for /api) and browser -> cloudfront -> s3-static-origin (for SPA assets).
+- Internal synchronous calls:
+  - api-gateway -> bff-gateway (if used)
+  - bff-gateway -> identity/catalog/cart/order/payment
+  - cart-service -> inventory-service (CheckStock) for validation
+  - delivery-service -> external delivery partner APIs (handoff)
+  - payment-service -> external payment provider APIs (initiate)
+  - payment-provider -> payment-service webhook endpoint (public inbound via api-gateway)
+- Asynchronous events for cross-domain propagation:
+  - payment-service publishes PaymentSucceeded
+  - order-service publishes OrderPlaced
+  - delivery-service publishes OrderHandedOff
+  - order-service consumes OrderHandedOff for status update
+  - catalog-service consumes OrderPlaced for popularity updates
+
+6) Key invariants enforced by decomposition (from PRD)
+- No negative inventory.
+- No order exists without confirmed payment.
+- Delivery handoff occurs only after order is persisted.
+- Duplicate payment webhooks cannot create duplicate orders.
+- Same-day promise not shown after cutoff time.
+- Frontend accesses backend only via approved public API surface.
+
+7) Stage 1 deliverables (files created)
+- 14_service_interaction_map_v2_frontend_amended.txt
+- 15_event_flow_map.txt (unchanged; frontend does not change event semantics)
+- 16_domain_ownership_matrix_v2_frontend_amended.txt
+- 17_state_machines.txt (unchanged; frontend does not own these state machines)
+- 18_sequence_diagrams_v2_frontend_amended.txt
+- 19_frontend_contract_and_performance_notes.txt
+
+8) Stage 1 exit criteria (gate)
+- All components listed and scoped (including frontend-spa and optional bff-gateway).
+- Ownership boundaries agreed (no shared DB writes).
+- Public API surface defined (what is exposed via api-gateway).
+- Synchronous call graph documented with high-level failure behavior.
+- Event flow documented with publishers/consumers and invariants.
+- State machines defined for Order, Payment, Inventory Reservation (if used), Delivery Handoff.
+- Frontend performance and contract dependencies captured at a system level.
+- Open questions captured and assigned owners.
+
+9) Open questions requiring decision before Stage 2 (Contracts)
+- Reservation model for inventory: validate-only vs reserve-and-confirm.
+- Event bus choice: Kafka/MSK vs SNS/SQS (schema discipline requirement).
+- Whether bff-gateway is mandatory for MVP or api-gateway routes directly to services.
+- Whether COD is supported in MVP.
+- Which endpoints (if any) will be cached at cloudfront for short TTL and under what safety rules.

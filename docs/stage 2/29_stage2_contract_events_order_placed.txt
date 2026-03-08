@@ -1,0 +1,22 @@
+STAGE 2 CONTRACT (EVENT)
+EVENT: OrderPlaced (v1)
+Owner: order-service
+Primary consumers: delivery-service, catalog-service
+Date: 2026-03-07
+
+When emitted
+After order DB commit (and outbox persistence recommended). Duplicates possible.
+
+Required fields
+event_name, event_id, order_id, user_id, city_code,
+delivery_type, earliest_delivery_date, amount, currency,
+items (product_id, qty, price_snapshot), occurred_at
+
+Optional fields
+address_id (optional; avoid full address)
+
+Idempotency key recommendation
+order_id
+
+Compatibility rules
+Additive only; consumers tolerate unknown fields.

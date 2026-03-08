@@ -1,0 +1,50 @@
+SERVICE INTERACTION MAP (SYSTEM LEVEL)
+Fitness Nutrition Commerce Platform — MVP Release 1
+Amendment: Frontend SPA and Optional BFF Included
+
+Legend
+- SYNC: synchronous HTTP/gRPC request-response
+- ASYNC: event publication/consumption
+
+Public request paths
+1) React SPA static assets
+browser -> cloudfront -> s3-static-origin
+
+2) Public API calls
+browser -> cloudfront -> api-gateway -> alb-ingress -> (bff-gateway OR domain service)
+
+Frontend access rules
+- frontend-spa calls only api-gateway endpoints (preferably same host as cloudfront distribution to simplify CORS).
+- frontend-spa does not call internal ClusterIP service endpoints.
+- If bff-gateway is used, frontend-spa calls bff-gateway only through api-gateway.
+
+Preferred SPA pattern (recommended)
+- browser -> api-gateway -> bff-gateway (SYNC)
+- bff-gateway aggregates downstream calls (SYNC) and returns a single response to frontend-spa.
+
+Synchronous call graph (core)
+- bff-gateway (SYNC) -> identity-service for login, profile, addresses
+- bff-gateway (SYNC) -> catalog-service for PLP/PDP content
+- bff-gateway (SYNC) -> cart-service for cart CRUD and validation orchestration
+- bff-gateway (SYNC) -> order-service for order read endpoints
+- bff-gateway (SYNC) -> payment-service for payment initiation
+- cart-service (SYNC gRPC preferred) -> inventory-service CheckStock(city_code, items)
+- delivery-service (SYNC) -> external delivery partner APIs (handoff)
+- payment-service (SYNC) -> external payment provider APIs (initiate)
+- payment-provider (SYNC callback) -> payment-service webhook endpoint (public inbound via api-gateway)
+- (optional, policy) order-service (SYNC) -> inventory-service for final reserve/commit during order creation
+
+Async event dependencies (unchanged)
+- payment-service (ASYNC publish) -> event-bus: PaymentSucceeded
+- order-service (ASYNC consume) PaymentSucceeded
+- order-service (ASYNC publish) -> event-bus: OrderPlaced
+- delivery-service (ASYNC consume) OrderPlaced
+- delivery-service (ASYNC publish) -> event-bus: OrderHandedOff
+- order-service (ASYNC consume) OrderHandedOff
+- catalog-service (ASYNC consume) OrderPlaced (popularity update)
+
+Frontend failure surface notes (system-level)
+- If catalog read fails: show retry UI; allow browsing retries; do not block login.
+- If inventory validation fails: block checkout and show explicit “cannot validate inventory right now” message; do not proceed to payment.
+- If payment initiation fails: do not create order; show payment initiation failure and allow retry.
+- If order status fetch fails: show last known status with refresh option; do not display unverified “handed off” state.

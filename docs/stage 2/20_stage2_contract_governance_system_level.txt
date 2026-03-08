@@ -1,0 +1,67 @@
+STAGE 2 SYSTEM LEVEL DOCUMENT
+CONTRACT GOVERNANCE AND VERSIONING POLICY
+Fitness Nutrition Commerce Platform — MVP Release 1
+Date: 2026-03-07
+
+Purpose
+Stage 2 defines and governs the cross-service contracts that allow independent service development and independent deployments. Contracts include REST (OpenAPI), gRPC (Protobuf), and async events (schema registry). This document defines the rules to keep contracts stable and backward compatible.
+
+Scope
+- Public API surface exposed to frontend-spa via api-gateway (and optionally bff-gateway).
+- Internal service-to-service APIs (SYNC) and events (ASYNC).
+- Standard error envelope and idempotency requirements.
+- Schema evolution rules for backward compatibility.
+
+Contract Ownership Model
+- Producer owns the contract.
+- Consumers must tolerate additive changes (unknown fields).
+- Breaking changes require a version bump and a parallel contract path.
+- All contracts must declare: owner_service, consumers, version, and deprecation policy.
+
+API Versioning
+- Public APIs: version in path prefix (/api/v1/...) for MVP.
+- Internal APIs: versioned by Protobuf package version or endpoint path conventions; avoid breaking changes.
+
+Standard Error Envelope (required for all public endpoints)
+Every public endpoint returns errors in the same shape:
+- error_code (string, stable)
+- message (string, user-safe)
+- details (object, optional)
+
+HTTP status codes must be consistent:
+- 400 validation errors
+- 401 unauthenticated
+- 403 unauthorized
+- 404 not found
+- 409 conflict (e.g., idempotency collision)
+- 429 rate limited
+- 500/502 for server/dependency failures
+
+Authentication Contract
+- frontend-spa uses JWT issued by identity-service after OTP verification.
+- api-gateway enforces JWT validation for protected endpoints.
+- Public endpoints (catalog read) allow anonymous access.
+
+Idempotency Rules (non-negotiable)
+- payment-service webhook processing is idempotent using provider_event_id (or equivalent).
+- order-service order creation is idempotent using payment_id or order_context_id.
+- delivery-service handoff is idempotent using internal_tracking_id as the idempotency key.
+- Any endpoint that can be retried by clients must accept idempotency-key headers or equivalent request_id fields.
+
+Async Event Rules
+- All events are registered in schema-registry with backward compatible evolution rules.
+- Producers must use transactional outbox or equivalent reliability mechanism (recommended).
+- Consumers must be idempotent and tolerate duplicates.
+- No global ordering assumptions; ordering only within an entity key (order_id) if required.
+
+Security and PII Rules for Contracts
+- Contracts must not expose OTP or sensitive provider secrets.
+- Responses must not include full addresses unless required for UI; use address_id where possible.
+- Logs and traces must redact sensitive fields; this applies to payload logging in any service.
+
+Exit Criteria for Stage 2
+- Public REST contracts for: identity, catalog, cart/checkout, payment, orders, admin are finalized and versioned.
+- Internal gRPC contract for Inventory.CheckStock is finalized and versioned.
+- Event schemas for PaymentSucceeded, OrderPlaced, OrderHandedOff are finalized and versioned.
+- Standard error envelope adopted across all public endpoints.
+- Compatibility checks and contract test harness expectations defined.

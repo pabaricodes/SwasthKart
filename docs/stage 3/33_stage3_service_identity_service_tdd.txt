@@ -1,0 +1,27 @@
+STAGE 3 SERVICE TDD
+IDENTITY-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Node.js
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Implements Stage 2 REST: Identity Service public API (v1).
+
+Responsibilities
+OTP request/verify; JWT issuance; profile + address CRUD; abuse protection.
+
+Data model (owned)
+users, addresses.
+
+Hosting
+EKS Deployment stateless; min 2 replicas; HPA; ClusterIP; exposed via api-gateway.
+RDS Postgres Multi-AZ; RDS Proxy recommended; Secrets Manager via IRSA.
+
+Security
+OTP rate limits; JWT key rotation; no PII in logs.
+
+Observability
+OTP success rate, auth latency, error rates, DB errors; tracing end-to-end.
+
+Failure modes
+OTP provider outage blocks login; browsing unaffected.

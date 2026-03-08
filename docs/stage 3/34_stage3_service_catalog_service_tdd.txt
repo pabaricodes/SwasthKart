@@ -1,0 +1,25 @@
+STAGE 3 SERVICE TDD
+CATALOG-SERVICE — TECHNICAL DESIGN DOC (PRODUCTION READY)
+Tech stack: Python (FastAPI)
+Primary owner: Backend
+Date: 2026-03-07
+
+Contracts
+Implements Stage 2 REST: Catalog public API (v1).
+Consumes Stage 2 event: OrderPlaced (popularity).
+
+Responsibilities
+Product metadata; filters/sort; popularity updates; admin CRUD.
+
+Data model (owned)
+products; optional popularity_dedupe for idempotent increments.
+
+Hosting
+EKS Deployment; min 2 replicas; HPA; RDS Postgres Multi-AZ.
+Optional Redis cache; images in S3+CloudFront.
+
+Observability
+Read latency, cache hit rate, consumer lag, failures.
+
+Failure modes
+Consumer down => stale popularity; DB down => browse fails (critical).

@@ -1,0 +1,28 @@
+FRONTEND CONTRACT AND PERFORMANCE NOTES (SYSTEM LEVEL)
+Fitness Nutrition Commerce Platform — MVP Release 1
+
+Purpose
+Capture system-level frontend requirements that must be reflected in Stage 2 contracts and Stage 3 component/service designs.
+
+Contracts and payload shaping
+- Frontend consumes OpenAPI contracts and should generate TypeScript types to prevent drift.
+- Error response shape must be consistent across services exposed via api-gateway. A standard error envelope must be defined in Stage 2 contracts.
+- If bff-gateway exists, it is the primary API surface for UI screens; it should provide coarse-grained endpoints aligned to screens to reduce chattiness.
+- If api-gateway routes directly to microservices for some endpoints, those endpoints must still follow the same error envelope and versioning policy.
+
+Caching and performance
+- Static assets: hash filenames, immutable caching at cloudfront.
+- HTML entry point (index.html): short TTL, must be invalidated on deploy.
+- API caching: off by default; enable only for safe GET endpoints with explicit TTL and cache key configuration (include query params like pincode).
+- Latency budget allocation: prefer fewer API calls per screen; adopt bff-gateway for PDP and checkout to keep P95 within targets.
+
+Frontend observability
+- Capture client-side errors (JS errors), network failures, and key funnel events (PDP view, add-to-cart, checkout validate, payment initiate, order confirmation).
+- Telemetry must redact PII (no phone, OTP, full address) and avoid sensitive payload logging.
+
+Browser compatibility
+- Define a supported browser matrix for MVP and incorporate it into E2E test coverage.
+
+Release independence
+- Frontend deployment must remain independent of backend deployments when contracts remain backward compatible.
+- Breaking contract changes require coordinated release and explicit version bump (Stage 2 governance).

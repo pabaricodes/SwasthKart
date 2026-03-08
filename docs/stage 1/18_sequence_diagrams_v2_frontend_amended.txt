@@ -1,0 +1,71 @@
+SEQUENCE DIAGRAMS (TEXT) (SYSTEM LEVEL)
+Fitness Nutrition Commerce Platform — MVP Release 1
+Amendment: Frontend SPA and Cache/Contract Considerations Included
+
+Notation
+A -> B: action (SYNC)
+A => B: event (ASYNC)
+
+0) Load application (static assets)
+browser -> cloudfront: GET / (index.html)
+browser -> cloudfront: GET /assets/app.<hash>.js (immutable cached)
+cloudfront -> s3-static-origin: serve assets (cached at edge)
+
+1) Browse PDP with earliest delivery
+browser -> api-gateway: GET /api/products/{id}?pincode=5600xx
+api-gateway -> bff-gateway: route request (optional)
+bff-gateway -> catalog-service: GET product detail (SYNC)
+bff-gateway -> inventory-service: CheckStock for 1 unit in city_code derived from pincode (SYNC; optional for PDP)
+bff-gateway -> browser: merged PDP response (includes earliest_delivery_date, Instant flag)
+
+2) Add to cart
+browser -> api-gateway: POST /api/cart/items {product_id, qty}
+api-gateway -> bff-gateway: route
+bff-gateway -> catalog-service: GET product price/name (SYNC) (if snapshot at add time)
+bff-gateway -> cart-service: add item with price_snapshot/name_snapshot (SYNC)
+cart-service -> bff-gateway -> browser: success
+
+3) Checkout validate and pay (no slot selection)
+browser -> api-gateway: POST /api/checkout/validate {address_id}
+api-gateway -> bff-gateway
+bff-gateway -> cart-service: validate(cart, address_id) (SYNC)
+cart-service -> inventory-service: CheckStock(city_code, items) (SYNC gRPC preferred)
+cart-service -> bff-gateway: validation result (delivery_type, earliest_delivery_date, errors)
+bff-gateway -> browser: validation result
+
+browser -> api-gateway: POST /api/payments/initiate {amount, cart_id, address_id}
+api-gateway -> bff-gateway
+bff-gateway -> payment-service: initiate payment (SYNC)
+payment-service -> bff-gateway -> browser: provider redirect / payment intent
+
+4) Payment success -> order creation -> delivery handoff
+payment-provider -> api-gateway: POST /api/payments/webhook (public inbound)
+api-gateway -> payment-service: forward webhook (SYNC)
+payment-service: verify signature + idempotency
+payment-service => event-bus: PaymentSucceeded
+
+order-service <= event-bus: PaymentSucceeded (consume)
+order-service: create order in DB (idempotent)
+order-service => event-bus: OrderPlaced
+
+delivery-service <= event-bus: OrderPlaced (consume)
+delivery-service: select partner via routing rules
+delivery-service: generate internal_tracking_id
+delivery-service -> partner-api: handoff(order payload, internal_tracking_id) (SYNC external)
+delivery-service: persist handoff log + partner_reference_id
+delivery-service => event-bus: OrderHandedOff
+
+order-service <= event-bus: OrderHandedOff (consume)
+order-service: update order_status = HANDED_OFF and persist partner_reference_id
+
+browser -> api-gateway: GET /api/orders/{order_id}
+api-gateway -> bff-gateway -> order-service: fetch order status (SYNC)
+order-service -> browser: returns PLACED or HANDED_OFF
+
+5) Failure scenario: frontend-backend contract mismatch prevention
+backend changes must be backward compatible with published contracts.
+frontend-spa uses generated types from OpenAPI; if a breaking change occurs, CI must fail before deployment.
+
+6) Failure scenario: CDN cache and rollout
+frontend-spa assets must be hash-versioned; deployment uploads new assets and invalidates only index.html.
+if rollback required, restore prior index.html and asset pointers and invalidate index.html again.

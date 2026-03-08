@@ -1,0 +1,21 @@
+STAGE 2 CONTRACT (EVENT)
+EVENT: OrderHandedOff (v1)
+Owner: delivery-service
+Primary consumer: order-service
+Date: 2026-03-07
+
+When emitted
+After partner handoff accepted and delivery-service persists success.
+
+Required fields
+event_name, event_id, order_id, partner_id,
+partner_reference_id, internal_tracking_id, occurred_at
+
+Optional fields
+notes
+
+Idempotency key recommendation
+internal_tracking_id or order_id
+
+Compatibility rules
+Additive only; consumers tolerate unknown fields.

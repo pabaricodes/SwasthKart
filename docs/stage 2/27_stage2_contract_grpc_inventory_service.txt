@@ -1,0 +1,30 @@
+STAGE 2 CONTRACT (gRPC)
+INVENTORY SERVICE — INTERNAL RPC CONTRACT (v1)
+Owner: inventory-service
+Consumers: cart-service (required), bff-gateway (optional), order-service (optional)
+Date: 2026-03-07
+
+Proto Package (conceptual)
+inventory.v1
+
+RPC: CheckStock
+Request fields:
+- city_code (string)
+- items (repeated):
+  - product_id (string)
+  - quantity (int)
+
+Response fields:
+- items (repeated):
+  - product_id (string)
+  - requested_qty (int)
+  - available (bool)
+  - available_qty (int)
+  - same_day_eligible (bool)
+  - earliest_delivery_date (ISO date string)
+  - reason_code (optional string)
+
+Contract Requirements
+- Fast and safe under concurrency; no negative stock invariant.
+- earliest_delivery_date computed from cutoff rules and stock.
+- Additive changes only; breaking changes require inventory.v2.

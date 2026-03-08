@@ -1,0 +1,21 @@
+STAGE 3 SERVICE / OPERATIONS DESIGN DOC
+ADMIN CAPABILITIES AND OPERATIONS SPEC
+Date: 2026-03-07
+
+Purpose
+Define admin exposure and operational safety across services with auditability and domain ownership enforcement.
+
+Approach
+Admin endpoints exist within owning services and are routed through /api/v1/admin via api-gateway.
+
+Security
+MFA + admin role claim; optional IP allowlist; audit logs for all mutations.
+
+Operational workflows
+Product CRUD and deactivate; inventory bulk import and adjustments; routing rules changes; refunds and cancellations.
+
+Safety and observability
+Rate limits for destructive operations; confirmation headers; dashboards for inventory changes and refunds.
+
+Exit criteria
+Admin endpoints implemented and audited per Stage 2 admin contract.

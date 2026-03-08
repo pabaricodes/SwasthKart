@@ -1,0 +1,53 @@
+STAGE 2 CONTRACT (REST)
+IDENTITY SERVICE — PUBLIC API CONTRACT (v1)
+Owner: identity-service
+Consumers: frontend-spa, bff-gateway
+Date: 2026-03-07
+
+Base Path
+/api/v1/identity
+
+Authentication
+- OTP endpoints are public.
+- Profile and address endpoints require JWT.
+
+Endpoints
+POST /otp/request
+Request: phone
+Response: request_id, retry_after_seconds
+
+POST /otp/verify
+Request: phone, otp, request_id
+Response: jwt, user_id, token_expiry_seconds
+
+GET /me
+Auth: JWT
+Response: user_id, phone_masked, name, created_at
+
+PUT /me
+Auth: JWT
+Request: name
+Response: updated profile
+
+GET /me/addresses
+Auth: JWT
+Response: list of address objects
+
+POST /me/addresses
+Auth: JWT
+Request: address fields
+Response: address_id
+
+PUT /me/addresses/{address_id}
+Auth: JWT
+Request: address fields
+Response: updated address
+
+DELETE /me/addresses/{address_id}
+Auth: JWT
+Response: success
+
+Error Envelope
+Must comply with Stage 2 standard error envelope.
+Rate Limits
+OTP request: strict per phone and IP.
