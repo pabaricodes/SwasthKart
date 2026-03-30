@@ -1,37 +1,61 @@
 package com.swasthkart.inventory.entity;
 
+import com.swasthkart.inventory.config.PostgresEnumType;
+import com.swasthkart.inventory.domain.ReservationStatus;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import org.hibernate.annotations.Type;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
 @Entity
 @Table(name = "reservations")
 public class Reservation {
 
-  @Id
-  @Column(name = "reservation_id", nullable = false)
-  private UUID reservationId;
+    @Id
+    @Column(name = "id", nullable = false)
+    private UUID id;
 
-  @Column(name = "user_id", nullable = true)
-  private UUID userId;
+    @Type(PostgresEnumType.class)
+    @Column(name = "status", nullable = false, columnDefinition = "reservation_status")
+    private ReservationStatus status;
 
-  @Column(name = "cart_id", nullable = false)
-  private UUID cartId;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 
-  @Column(name = "city_id", nullable = false)
-  private String cityId;
+    @Column(name = "expires_at", nullable = false)
+    private Instant expiresAt;
 
-  @Column(name = "status", nullable = false)
-  private String status;
+    @Column(name = "confirmed_at")
+    private Instant confirmedAt;
 
-  @Column(name = "expires_at", nullable = false)
-  private Instant expiresAt;
+    @OneToMany(mappedBy = "reservation", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ReservationItem> items = new ArrayList<>();
 
-  @Column(name = "created_at", nullable = false)
-  private Instant createdAt;
+    @PrePersist
+    public void prePersist() {
+        if (this.id == null) this.id = UUID.randomUUID();
+        if (this.createdAt == null) this.createdAt = Instant.now();
+        if (this.status == null) this.status = ReservationStatus.HELD;
+    }
+
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
+
+    public ReservationStatus getStatus() { return status; }
+    public void setStatus(ReservationStatus status) { this.status = status; }
+
+    public Instant getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public Instant getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
+
+    public Instant getConfirmedAt() { return confirmedAt; }
+    public void setConfirmedAt(Instant confirmedAt) { this.confirmedAt = confirmedAt; }
+
+    public List<ReservationItem> getItems() { return items; }
+    public void setItems(List<ReservationItem> items) { this.items = items; }
 }

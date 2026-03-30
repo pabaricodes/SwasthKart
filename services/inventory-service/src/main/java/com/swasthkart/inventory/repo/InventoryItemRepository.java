@@ -1,8 +1,13 @@
 package com.swasthkart.inventory.repo;
 
 import com.swasthkart.inventory.entity.InventoryItem;
-import com.swasthkart.inventory.entity.InventoryItemKey;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface InventoryItemRepository extends JpaRepository<InventoryItem, InventoryItemKey> {
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface InventoryItemRepository extends JpaRepository<InventoryItem, String> {
+    Optional<InventoryItem> findByProductId(UUID productId);
+    List<InventoryItem> findByProductIdIn(List<UUID> productIds);
 }

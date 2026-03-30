@@ -1,0 +1,17 @@
+{
+  "type": "record",
+  "name": "PaymentSucceeded",
+  "namespace": "com.swasthkart.events",
+  "doc": "Emitted by payment-service when a payment is confirmed successful via webhook callback.",
+  "fields": [
+    { "name": "event_id", "type": "string", "doc": "UUID — unique event identifier for idempotency" },
+    { "name": "payment_id", "type": "string", "doc": "UUID — the payment record ID" },
+    { "name": "user_id", "type": "string", "doc": "UUID — the user who made the payment" },
+    { "name": "cart_id", "type": "string", "doc": "UUID — the cart being checked out" },
+    { "name": "address_id", "type": "string", "doc": "UUID — the selected shipping address" },
+    { "name": "amount_paise", "type": "int", "doc": "Payment amount in paise" },
+    { "name": "currency", "type": "string", "default": "INR" },
+    { "name": "provider_ref", "type": "string", "doc": "External payment provider reference" },
+    { "name": "occurred_at", "type": "string", "doc": "ISO 8601 timestamp of when payment succeeded" }
+  ]
+}

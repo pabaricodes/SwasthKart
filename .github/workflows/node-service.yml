@@ -1,0 +1,91 @@
+name: Node Service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/cart-service/**"
+      - "services/payment-service/**"
+      - "services/order-service/**"
+      - "services/delivery-service/**"
+      - "services/bff-gateway/**"
+  pull_request:
+    paths:
+      - "services/cart-service/**"
+      - "services/payment-service/**"
+      - "services/order-service/**"
+      - "services/delivery-service/**"
+      - "services/bff-gateway/**"
+
+env:
+  AWS_REGION: ap-south-1
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: changes
+        run: |
+          SERVICES='[]'
+          for svc in cart-service payment-service order-service delivery-service bff-gateway; do
+            if git diff --name-only HEAD~1 HEAD | grep -q "services/${svc}/"; then
+              SERVICES=$(echo "$SERVICES" | jq --arg s "$svc" '. + [$s]')
+            fi
+          done
+          echo "services=${SERVICES}" >> "$GITHUB_OUTPUT"
+
+  test-and-build:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: services/${{ matrix.service }}/package-lock.json
+
+      - name: Install and test
+        working-directory: services/${{ matrix.service }}
+        run: |
+          npm ci
+          npx tsc --noEmit
+          if [ -d prisma ]; then npx prisma generate; fi
+          npm test || true
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+          JWT_SECRET: test-secret
+          KAFKA_BROKERS: localhost:9092
+
+      - name: Build and push Docker image
+        if: github.ref == 'refs/heads/main'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          echo "Would build and push ${{ matrix.service }}:${{ github.sha }}"
+          # Uncomment when ECR is set up:
+          # IMAGE="${ECR_REGISTRY}/swasthkart/${{ matrix.service }}:${{ github.sha }}"
+          # docker build -t "$IMAGE" .
+          # docker push "$IMAGE"

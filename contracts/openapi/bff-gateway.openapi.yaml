@@ -1,0 +1,1511 @@
+openapi: 3.0.3
+info:
+  title: SwasthKart BFF Gateway
+  description: |
+    Frontend-facing Backend-For-Frontend API gateway.
+    Handles authentication via HttpOnly JWT cookies, aggregates data from
+    internal microservices, and serves enriched responses for the web/mobile clients.
+
+    Admin endpoints under /api/v1/admin/* are proxied to the admin-service — see admin-service.openapi.yaml.
+  version: 1.0.0
+  contact:
+    name: SwasthKart Engineering
+
+servers:
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Auth
+    description: OTP-based authentication
+  - name: Home & Browse
+    description: Public UI endpoints for browsing
+  - name: Cart
+    description: Shopping cart operations (authenticated)
+  - name: Checkout
+    description: Checkout flow (authenticated)
+  - name: Orders
+    description: Order history and details (authenticated)
+  - name: Profile
+    description: User profile management (authenticated)
+  - name: Addresses
+    description: User address management (authenticated)
+  - name: Admin
+    description: Admin endpoints proxied from admin-service (admin role required)
+
+paths:
+  # ─── Health ────────────────────────────────────────────────────────────
+  /health/live:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: getLiveness
+      security: []
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      operationId: getReadiness
+      security: []
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: UP
+        "503":
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  # ─── Auth ──────────────────────────────────────────────────────────────
+  /api/v1/auth/otp/send:
+    post:
+      tags: [Auth]
+      summary: Send OTP to phone number
+      operationId: sendOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone]
+              properties:
+                phone:
+                  type: string
+                  pattern: '^\+?[1-9]\d{9,14}$'
+                  description: Phone number (E.164 format recommended)
+                  example: "+919876543210"
+      responses:
+        "200":
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message, expires_in]
+                properties:
+                  message:
+                    type: string
+                    example: OTP sent successfully
+                  expires_in:
+                    type: integer
+                    description: OTP validity in seconds
+                    example: 300
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/auth/otp/verify:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and authenticate
+      description: On success, sets an HttpOnly cookie named "swasthkart_token" containing the JWT.
+      operationId: verifyOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phone, otp]
+              properties:
+                phone:
+                  type: string
+                  pattern: '^\+?[1-9]\d{9,14}$'
+                  example: "+919876543210"
+                otp:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+                  example: "482910"
+      responses:
+        "200":
+          description: OTP verified — JWT cookie set
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: swasthkart_token=eyJhbGciOi...; Path=/; HttpOnly; Secure; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [user_id, is_new_user]
+                properties:
+                  user_id:
+                    type: string
+                    format: uuid
+                    example: "u1s2e3r4-a5b6-7890-cdef-1234567890ab"
+                  is_new_user:
+                    type: boolean
+                    description: True if the user was just created
+                    example: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout and clear auth cookie
+      operationId: logout
+      security:
+        - CookieAuth: []
+      responses:
+        "204":
+          description: Logged out — cookie cleared
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: swasthkart_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0
+
+  # ─── UI Public ─────────────────────────────────────────────────────────
+  /api/v1/ui/home:
+    get:
+      tags: [Home & Browse]
+      summary: Get home page data
+      operationId: getHomePage
+      security: []
+      responses:
+        "200":
+          description: Home page payload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [categories, featured_products]
+                properties:
+                  categories:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Category"
+                  featured_products:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProductWithStock"
+
+  /api/v1/ui/category/{slug}:
+    get:
+      tags: [Home & Browse]
+      summary: Get category page with products
+      operationId: getCategoryPage
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+          description: URL-friendly category slug
+          example: organic-grains
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: sort_by
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [price, name, created_at]
+          description: Field to sort by
+        - name: sort_order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+          description: Sort direction
+      responses:
+        "200":
+          description: Category page with paginated products
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [category, products]
+                properties:
+                  category:
+                    $ref: "#/components/schemas/Category"
+                  products:
+                    type: object
+                    required: [data, pagination]
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ProductWithStock"
+                      pagination:
+                        $ref: "#/components/schemas/Pagination"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/ui/pdp/{product_id}:
+    get:
+      tags: [Home & Browse]
+      summary: Get product detail page
+      operationId: getProductDetailPage
+      security: []
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Product ID
+      responses:
+        "200":
+          description: Product detail with stock info
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [product, stock]
+                properties:
+                  product:
+                    $ref: "#/components/schemas/ProductDetail"
+                  stock:
+                    type: object
+                    required: [available_qty, in_stock]
+                    properties:
+                      available_qty:
+                        type: integer
+                        minimum: 0
+                        example: 42
+                      in_stock:
+                        type: boolean
+                        example: true
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── UI Authenticated — Cart ───────────────────────────────────────────
+  /api/v1/ui/cart:
+    get:
+      tags: [Cart]
+      summary: Get current user's cart
+      operationId: getCart
+      security:
+        - CookieAuth: []
+      responses:
+        "200":
+          description: Cart with enriched items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/ui/cart/items:
+    post:
+      tags: [Cart]
+      summary: Add item to cart
+      operationId: addCartItem
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Unique key for idempotent request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, sku, quantity]
+              properties:
+                product_id:
+                  type: string
+                  format: uuid
+                  example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                sku:
+                  type: string
+                  example: "RICE-BAS-1KG"
+                quantity:
+                  type: integer
+                  minimum: 1
+                  example: 2
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Conflict — insufficient stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /api/v1/ui/cart/items/{item_id}:
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity
+      operationId: updateCartItem
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+                  example: 3
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+    delete:
+      tags: [Cart]
+      summary: Remove item from cart
+      operationId: deleteCartItem
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: item_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart item ID
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── UI Authenticated — Checkout ───────────────────────────────────────
+  /api/v1/ui/checkout:
+    post:
+      tags: [Checkout]
+      summary: Initiate checkout
+      operationId: checkout
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cart_id, address_id]
+              properties:
+                cart_id:
+                  type: string
+                  format: uuid
+                  example: "c1a2r3t4-i5d6-7890-abcd-ef1234567890"
+                address_id:
+                  type: string
+                  format: uuid
+                  example: "a1d2d3r4-e5s6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: Checkout initiated — redirect to payment
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [payment_id, redirect_url]
+                properties:
+                  payment_id:
+                    type: string
+                    format: uuid
+                    example: "p1a2y3m4-e5n6-7890-abcd-ef1234567890"
+                  redirect_url:
+                    type: string
+                    format: uri
+                    description: Payment gateway redirect URL
+                    example: "https://payments.example.com/pay/p1a2y3m4-e5n6-7890-abcd-ef1234567890"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "409":
+          description: Conflict — cart modified or stock unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  # ─── UI Authenticated — Orders ─────────────────────────────────────────
+  /api/v1/ui/orders:
+    get:
+      tags: [Orders]
+      summary: List user's orders (paginated)
+      operationId: listOrders
+      security:
+        - CookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated order summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrderSummary"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/v1/ui/orders/{id}:
+    get:
+      tags: [Orders]
+      summary: Get order detail with delivery status
+      operationId: getOrderDetail
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Order ID
+      responses:
+        "200":
+          description: Order detail with optional delivery info
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [order]
+                properties:
+                  order:
+                    $ref: "#/components/schemas/OrderDetail"
+                  delivery:
+                    $ref: "#/components/schemas/DeliveryStatus"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── UI Authenticated — Profile ────────────────────────────────────────
+  /api/v1/ui/profile:
+    get:
+      tags: [Profile]
+      summary: Get current user's profile
+      operationId: getProfile
+      security:
+        - CookieAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    put:
+      tags: [Profile]
+      summary: Update current user's profile
+      operationId: updateProfile
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 100
+                  example: "Aarav Sharma"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  # ─── UI Authenticated — Addresses ──────────────────────────────────────
+  /api/v1/ui/addresses:
+    get:
+      tags: [Addresses]
+      summary: List user's addresses
+      operationId: listAddresses
+      security:
+        - CookieAuth: []
+      responses:
+        "200":
+          description: List of addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Address"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      tags: [Addresses]
+      summary: Add a new address
+      operationId: createAddress
+      security:
+        - CookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressInput"
+      responses:
+        "201":
+          description: Address created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+  /api/v1/ui/addresses/{id}:
+    put:
+      tags: [Addresses]
+      summary: Update an address
+      operationId: updateAddress
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Address ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressInput"
+      responses:
+        "200":
+          description: Updated address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+
+    delete:
+      tags: [Addresses]
+      summary: Delete an address
+      operationId: deleteAddress
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Address ID
+      responses:
+        "204":
+          description: Address deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/ui/addresses/{id}/default:
+    put:
+      tags: [Addresses]
+      summary: Set address as default
+      operationId: setDefaultAddress
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Address ID
+      responses:
+        "200":
+          description: Address set as default
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Admin (proxied) ──────────────────────────────────────────────────
+  /api/v1/admin/dashboard:
+    get:
+      tags: [Admin]
+      summary: "[Proxied] Get admin dashboard metrics"
+      description: Proxied to admin-service. See admin-service.openapi.yaml for full details.
+      operationId: adminGetDashboard
+      security:
+        - CookieAuth: []
+      responses:
+        "200":
+          description: Dashboard metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/inventory:
+    get:
+      tags: [Admin]
+      summary: "[Proxied] List inventory"
+      description: Proxied to admin-service. See admin-service.openapi.yaml for full details.
+      operationId: adminListInventory
+      security:
+        - CookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Paginated inventory items
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/InventoryItem"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/inventory/{sku}:
+    put:
+      tags: [Admin]
+      summary: "[Proxied] Update inventory"
+      description: Proxied to admin-service. See admin-service.openapi.yaml for full details.
+      operationId: adminUpdateInventory
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [total_qty]
+              properties:
+                total_qty:
+                  type: integer
+                  minimum: 0
+      responses:
+        "200":
+          description: Updated inventory item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InventoryItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/v1/admin/deliveries:
+    get:
+      tags: [Admin]
+      summary: "[Proxied] List deliveries"
+      description: Proxied to admin-service. See admin-service.openapi.yaml for full details.
+      operationId: adminListDeliveries
+      security:
+        - CookieAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, FAILED]
+      responses:
+        "200":
+          description: Paginated deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, pagination]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DeliverySummary"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/v1/admin/deliveries/{id}/status:
+    patch:
+      tags: [Admin]
+      summary: "[Proxied] Update delivery status"
+      description: Proxied to admin-service. See admin-service.openapi.yaml for full details.
+      operationId: adminUpdateDeliveryStatus
+      security:
+        - CookieAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, FAILED]
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Updated delivery
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliverySummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: swasthkart_token
+      description: HttpOnly JWT cookie set by POST /api/v1/auth/otp/verify
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number (1-indexed)
+
+    PageSize:
+      name: page_size
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+      description: Number of items per page
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: UNAUTHORIZED
+              message: Authentication required
+              details: {}
+
+    Forbidden:
+      description: Insufficient permissions — admin role required
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: FORBIDDEN
+              message: Admin role required
+              details: {}
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: NOT_FOUND
+              message: Resource not found
+              details: {}
+
+    UnprocessableEntity:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid input
+              details: {}
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error:
+              code: RATE_LIMITED
+              message: Too many requests — please try again later
+              details: {}
+
+  schemas:
+    # ─── Common ────────────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              example: VALIDATION_ERROR
+            message:
+              type: string
+              example: Invalid input provided
+            details:
+              type: object
+              additionalProperties: true
+
+    Pagination:
+      type: object
+      required: [page, page_size, total_count, total_pages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+        page_size:
+          type: integer
+          minimum: 1
+          example: 20
+        total_count:
+          type: integer
+          minimum: 0
+          example: 150
+        total_pages:
+          type: integer
+          minimum: 0
+          example: 8
+
+    # ─── Catalog ───────────────────────────────────────────────────────
+    Category:
+      type: object
+      required: [id, name, slug, image_url, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "c1a2t3e4-g5o6-7890-abcd-ef1234567890"
+        name:
+          type: string
+          example: Organic Grains
+        slug:
+          type: string
+          example: organic-grains
+        description:
+          type: string
+          nullable: true
+          example: Certified organic grains and cereals
+        image_url:
+          type: string
+          format: uri
+          example: "https://cdn.swasthkart.in/categories/organic-grains.webp"
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Product:
+      type: object
+      required: [id, sku, name, slug, category_id, price_paise, unit, image_url, is_active, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        sku:
+          type: string
+          example: "RICE-BAS-1KG"
+        name:
+          type: string
+          example: Organic Basmati Rice 1kg
+        slug:
+          type: string
+          example: organic-basmati-rice-1kg
+        category_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+          nullable: true
+          example: Premium aged basmati rice from Dehradun
+        price_paise:
+          type: integer
+          minimum: 0
+          description: Price in paise
+          example: 24900
+        unit:
+          type: string
+          description: Unit of measure
+          example: "1 kg"
+        image_url:
+          type: string
+          format: uri
+          example: "https://cdn.swasthkart.in/products/rice-bas-1kg.webp"
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    NutritionInfo:
+      type: object
+      properties:
+        serving_size:
+          type: string
+          example: "100g"
+        calories:
+          type: number
+          example: 350
+        protein_g:
+          type: number
+          example: 7.5
+        carbohydrates_g:
+          type: number
+          example: 78
+        fat_g:
+          type: number
+          example: 0.6
+        fiber_g:
+          type: number
+          example: 1.2
+        sugar_g:
+          type: number
+          example: 0.1
+        sodium_mg:
+          type: number
+          example: 1
+
+    ProductDetail:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          properties:
+            nutrition_info:
+              $ref: "#/components/schemas/NutritionInfo"
+            tags:
+              type: array
+              items:
+                type: string
+              example: ["organic", "gluten-free"]
+
+    ProductWithStock:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+        - type: object
+          required: [available_qty, in_stock]
+          properties:
+            available_qty:
+              type: integer
+              minimum: 0
+              example: 42
+            in_stock:
+              type: boolean
+              example: true
+
+    # ─── Cart ──────────────────────────────────────────────────────────
+    EnrichedCartItem:
+      type: object
+      required: [id, cart_id, product_id, sku, quantity, unit_price_paise, total_price_paise, product_name, product_image_url, in_stock]
+      properties:
+        id:
+          type: string
+          format: uuid
+        cart_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          example: "RICE-BAS-1KG"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        unit_price_paise:
+          type: integer
+          minimum: 0
+          description: Price per unit in paise
+          example: 24900
+        total_price_paise:
+          type: integer
+          minimum: 0
+          description: Line total in paise (unit_price_paise * quantity)
+          example: 49800
+        product_name:
+          type: string
+          example: Organic Basmati Rice 1kg
+        product_image_url:
+          type: string
+          format: uri
+          example: "https://cdn.swasthkart.in/products/rice-bas-1kg.webp"
+        in_stock:
+          type: boolean
+          example: true
+
+    CartResponse:
+      type: object
+      required: [cart_id, items, total_paise, item_count]
+      properties:
+        cart_id:
+          type: string
+          format: uuid
+          example: "c1a2r3t4-i5d6-7890-abcd-ef1234567890"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EnrichedCartItem"
+        total_paise:
+          type: integer
+          minimum: 0
+          description: Cart total in paise
+          example: 74700
+        item_count:
+          type: integer
+          minimum: 0
+          description: Total number of items in the cart
+          example: 3
+
+    # ─── Orders ────────────────────────────────────────────────────────
+    OrderItem:
+      type: object
+      required: [id, order_id, product_id, sku, product_name, quantity, unit_price_paise, total_price_paise]
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          example: "RICE-BAS-1KG"
+        product_name:
+          type: string
+          example: Organic Basmati Rice 1kg
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+        unit_price_paise:
+          type: integer
+          minimum: 0
+          example: 24900
+        total_price_paise:
+          type: integer
+          minimum: 0
+          example: 49800
+
+    OrderSummary:
+      type: object
+      required: [id, user_id, status, total_paise, item_count, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED, CANCELLED, REFUNDED]
+          example: CONFIRMED
+        total_paise:
+          type: integer
+          minimum: 0
+          description: Order total in paise
+          example: 74700
+        item_count:
+          type: integer
+          minimum: 0
+          example: 3
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrderDetail:
+      allOf:
+        - $ref: "#/components/schemas/OrderSummary"
+        - type: object
+          required: [items, shipping_address]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/OrderItem"
+            shipping_address:
+              $ref: "#/components/schemas/Address"
+            payment_id:
+              type: string
+              format: uuid
+              nullable: true
+
+    # ─── Delivery ──────────────────────────────────────────────────────
+    DeliveryStatus:
+      type: object
+      required: [delivery_id, status]
+      properties:
+        delivery_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, FAILED]
+        assigned_to:
+          type: string
+          nullable: true
+          example: "Ramesh Kumar"
+        estimated_delivery_at:
+          type: string
+          format: date-time
+          nullable: true
+        actual_delivery_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    DeliverySummary:
+      type: object
+      required: [id, order_id, status, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, ASSIGNED, PICKED_UP, IN_TRANSIT, DELIVERED, FAILED]
+        assigned_to:
+          type: string
+          nullable: true
+        estimated_delivery_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # ─── User & Address ───────────────────────────────────────────────
+    User:
+      type: object
+      required: [id, phone, name, role, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        phone:
+          type: string
+          example: "+919876543210"
+        name:
+          type: string
+          example: "Aarav Sharma"
+        role:
+          type: string
+          enum: [USER, ADMIN]
+          example: USER
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      required: [id, user_id, label, line1, city, state, pincode, is_default, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          example: Home
+        line1:
+          type: string
+          example: "42, Lotus Apartments"
+        line2:
+          type: string
+          nullable: true
+          example: "MG Road, Koramangala"
+        city:
+          type: string
+          example: Bengaluru
+        state:
+          type: string
+          example: Karnataka
+        pincode:
+          type: string
+          example: "560034"
+        is_default:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    AddressInput:
+      type: object
+      required: [label, line1, city, state, pincode]
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 50
+          example: Home
+        line1:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "42, Lotus Apartments"
+        line2:
+          type: string
+          nullable: true
+          maxLength: 200
+          example: "MG Road, Koramangala"
+        city:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Bengaluru
+        state:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Karnataka
+        pincode:
+          type: string
+          pattern: '^\d{6}$'
+          example: "560034"
+
+    # ─── Admin (proxied schemas) ─────────────────────────────────────
+    DashboardResponse:
+      type: object
+      required: [total_orders, orders_today, revenue_today_paise, pending_deliveries]
+      properties:
+        total_orders:
+          type: integer
+          example: 12450
+        orders_today:
+          type: integer
+          example: 37
+        revenue_today_paise:
+          type: integer
+          description: Revenue today in paise
+          example: 4523500
+        pending_deliveries:
+          type: integer
+          example: 15
+
+    InventoryItem:
+      type: object
+      required: [sku, product_id, total_qty, available_qty, reserved_qty]
+      properties:
+        sku:
+          type: string
+          example: "RICE-BAS-1KG"
+        product_id:
+          type: string
+          format: uuid
+        total_qty:
+          type: integer
+          minimum: 0
+          example: 500
+        available_qty:
+          type: integer
+          minimum: 0
+          example: 420
+        reserved_qty:
+          type: integer
+          minimum: 0
+          example: 80

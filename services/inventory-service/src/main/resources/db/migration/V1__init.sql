@@ -1,28 +1,33 @@
+CREATE TYPE reservation_status AS ENUM ('HELD', 'CONFIRMED', 'RELEASED', 'EXPIRED');
+
 CREATE TABLE inventory_items (
-  sku_id           UUID NOT NULL,
-  city_id          TEXT NOT NULL,
-  on_hand_qty      INT  NOT NULL CHECK (on_hand_qty >= 0),
-  reserved_qty     INT  NOT NULL CHECK (reserved_qty >= 0),
-  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-  PRIMARY KEY (sku_id, city_id)
+    sku VARCHAR(50) PRIMARY KEY,
+    product_id UUID NOT NULL UNIQUE,
+    total_qty INTEGER NOT NULL DEFAULT 0,
+    available_qty INTEGER NOT NULL DEFAULT 0,
+    reserved_qty INTEGER NOT NULL DEFAULT 0,
+    version INTEGER NOT NULL DEFAULT 1,
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT chk_available_qty_non_negative CHECK (available_qty >= 0),
+    CONSTRAINT chk_qty_consistency CHECK (total_qty = available_qty + reserved_qty)
 );
+
+CREATE INDEX idx_inventory_product_id ON inventory_items(product_id);
 
 CREATE TABLE reservations (
-  reservation_id   UUID PRIMARY KEY,
-  user_id          UUID NULL,
-  cart_id          UUID NOT NULL,
-  city_id          TEXT NOT NULL,
-  status           TEXT NOT NULL,
-  expires_at       TIMESTAMPTZ NOT NULL,
-  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    status reservation_status NOT NULL DEFAULT 'HELD',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMP NOT NULL,
+    confirmed_at TIMESTAMP
 );
+
+CREATE INDEX idx_reservations_status_expires ON reservations(status, expires_at)
+    WHERE status = 'HELD';
 
 CREATE TABLE reservation_items (
-  reservation_id   UUID NOT NULL REFERENCES reservations(reservation_id) ON DELETE CASCADE,
-  sku_id           UUID NOT NULL,
-  qty              INT  NOT NULL CHECK (qty > 0),
-  PRIMARY KEY (reservation_id, sku_id)
+    reservation_id UUID NOT NULL REFERENCES reservations(id) ON DELETE CASCADE,
+    sku VARCHAR(50) NOT NULL REFERENCES inventory_items(sku),
+    qty INTEGER NOT NULL CHECK (qty > 0),
+    PRIMARY KEY (reservation_id, sku)
 );
-
-CREATE INDEX idx_reservations_cart ON reservations(cart_id);
-CREATE INDEX idx_reservations_expires ON reservations(expires_at);

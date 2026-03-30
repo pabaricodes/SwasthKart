@@ -1,0 +1,209 @@
+openapi: 3.0.3
+info:
+  title: SwasthKart Payment Service
+  version: 1.0.0
+  description: Payment initiation, mock provider, and webhook handling
+
+servers:
+  - url: http://localhost:3005
+
+paths:
+  /v1/payments/initiate:
+    post:
+      operationId: initiatePayment
+      tags: [Payments]
+      summary: Initiate a payment for checkout
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cart_id, address_id, amount_paise]
+              properties:
+                cart_id:
+                  type: string
+                  format: uuid
+                address_id:
+                  type: string
+                  format: uuid
+                amount_paise:
+                  type: integer
+                  minimum: 1
+      responses:
+        "201":
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment_id:
+                    type: string
+                    format: uuid
+                  redirect_url:
+                    type: string
+                    format: uri
+                  status:
+                    type: string
+                    enum: [INITIATED]
+
+  /v1/payments/{id}:
+    get:
+      operationId: getPayment
+      tags: [Payments]
+      summary: Get payment status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Payment"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/payments/webhook:
+    post:
+      operationId: paymentWebhook
+      tags: [Webhook]
+      summary: Receive payment provider callback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_id, status, provider_ref, timestamp]
+              properties:
+                payment_id:
+                  type: string
+                  format: uuid
+                status:
+                  type: string
+                  enum: [SUCCESS, FAILED]
+                provider_ref:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+      responses:
+        "200":
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+
+  /health/live:
+    get:
+      tags: [Health]
+      responses:
+        "200":
+          description: Alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /health/ready:
+    get:
+      tags: [Health]
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  checks:
+                    type: object
+                    properties:
+                      db:
+                        type: string
+                        example: ok
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Payment:
+      type: object
+      properties:
+        payment_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        cart_id:
+          type: string
+          format: uuid
+        address_id:
+          type: string
+          format: uuid
+        amount_paise:
+          type: integer
+        currency:
+          type: string
+          example: INR
+        status:
+          type: string
+          enum: [INITIATED, SUCCESS, FAILED, REFUNDED]
+        provider_ref:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"

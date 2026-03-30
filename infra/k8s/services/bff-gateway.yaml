@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bff-gateway
+  namespace: swasthkart
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bff-gateway
+  template:
+    metadata:
+      labels:
+        app: bff-gateway
+    spec:
+      serviceAccountName: bff-gateway
+      containers:
+        - name: bff-gateway
+          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/bff-gateway:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: bff-secrets
+                  key: jwt-secret
+            - name: IDENTITY_SERVICE_URL
+              value: "http://identity-service:3001"
+            - name: CATALOG_SERVICE_URL
+              value: "http://catalog-service:3002"
+            - name: INVENTORY_SERVICE_URL
+              value: "http://inventory-service:3003"
+            - name: CART_SERVICE_URL
+              value: "http://cart-service:3004"
+            - name: PAYMENT_SERVICE_URL
+              value: "http://payment-service:3005"
+            - name: ORDER_SERVICE_URL
+              value: "http://order-service:3006"
+            - name: DELIVERY_SERVICE_URL
+              value: "http://delivery-service:3007"
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bff-gateway
+  namespace: swasthkart
+spec:
+  selector:
+    app: bff-gateway
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bff-gateway
+  namespace: swasthkart
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: bff-gateway
+  namespace: swasthkart
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: bff-gateway
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 300

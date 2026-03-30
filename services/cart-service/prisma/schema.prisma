@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKED_OUT
+  ABANDONED
+}
+
+model Cart {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  status    CartStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  items     CartItem[]
+
+  @@unique([userId, status], name: "unique_active_cart")
+  @@index([userId])
+  @@map("carts")
+}
+
+model CartItem {
+  id             String   @id @default(uuid()) @db.Uuid
+  cartId         String   @map("cart_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  sku            String   @db.VarChar(50)
+  quantity       Int
+  unitPricePaise Int      @map("unit_price_paise")
+  productName    String   @map("product_name") @db.VarChar(200)
+  imageUrl       String?  @map("image_url") @db.VarChar(500)
+  snapshottedAt  DateTime @map("snapshotted_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  cart           Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model IdempotencyKey {
+  key       String   @id @db.VarChar(64)
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@map("idempotency_keys")
+}

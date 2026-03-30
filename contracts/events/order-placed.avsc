@@ -1,0 +1,46 @@
+{
+  "type": "record",
+  "name": "OrderPlaced",
+  "namespace": "com.swasthkart.events",
+  "doc": "Emitted by order-service after consuming PaymentSucceeded and creating the order.",
+  "fields": [
+    { "name": "event_id", "type": "string", "doc": "UUID — unique event identifier" },
+    { "name": "order_id", "type": "string", "doc": "UUID — the newly created order" },
+    { "name": "user_id", "type": "string", "doc": "UUID — the customer" },
+    { "name": "payment_id", "type": "string", "doc": "UUID — associated payment" },
+    { "name": "total_paise", "type": "int", "doc": "Order total in paise" },
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "OrderItem",
+          "fields": [
+            { "name": "product_id", "type": "string" },
+            { "name": "sku", "type": "string" },
+            { "name": "product_name", "type": "string" },
+            { "name": "quantity", "type": "int" },
+            { "name": "unit_price_paise", "type": "int" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "shipping_address",
+      "type": {
+        "type": "record",
+        "name": "ShippingAddress",
+        "fields": [
+          { "name": "label", "type": "string" },
+          { "name": "line1", "type": "string" },
+          { "name": "line2", "type": ["null", "string"], "default": null },
+          { "name": "city", "type": "string" },
+          { "name": "state", "type": "string" },
+          { "name": "pincode", "type": "string" }
+        ]
+      }
+    },
+    { "name": "occurred_at", "type": "string", "doc": "ISO 8601 timestamp" }
+  ]
+}

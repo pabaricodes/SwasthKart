@@ -1,0 +1,226 @@
+openapi: 3.0.3
+info:
+  title: SwasthKart Cart Service
+  version: 1.0.0
+  description: Shopping cart management with price snapshots and stock validation
+
+servers:
+  - url: http://localhost:3004
+
+paths:
+  /v1/cart:
+    get:
+      operationId: getCart
+      tags: [Cart]
+      summary: Get current user's active cart
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+    delete:
+      operationId: clearCart
+      tags: [Cart]
+      summary: Clear the entire cart
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Cart cleared
+
+  /v1/cart/items:
+    post:
+      operationId: addCartItem
+      tags: [Cart]
+      summary: Add item to cart
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, sku, quantity]
+              properties:
+                product_id:
+                  type: string
+                  format: uuid
+                sku:
+                  type: string
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        "201":
+          description: Item added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+        "409":
+          description: Item already in cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Out of stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /v1/cart/items/{item_id}:
+    parameters:
+      - name: item_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    put:
+      operationId: updateCartItem
+      tags: [Cart]
+      summary: Update item quantity
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity:
+                  type: integer
+                  minimum: 1
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+    delete:
+      operationId: removeCartItem
+      tags: [Cart]
+      summary: Remove item from cart
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CartResponse"
+
+  /health/live:
+    get:
+      tags: [Health]
+      responses:
+        "200":
+          description: Alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /health/ready:
+    get:
+      tags: [Health]
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ready
+                  checks:
+                    type: object
+                    properties:
+                      db:
+                        type: string
+                        example: ok
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CartResponse:
+      type: object
+      properties:
+        cart_id:
+          type: string
+          format: uuid
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/CartItem"
+        total_paise:
+          type: integer
+        item_count:
+          type: integer
+
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        product_name:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+        quantity:
+          type: integer
+        unit_price_paise:
+          type: integer
+        subtotal_paise:
+          type: integer
+        snapshotted_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object

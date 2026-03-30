@@ -1,0 +1,37 @@
+services:
+  cart-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cart
+      POSTGRES_PASSWORD: cart
+      POSTGRES_DB: cart
+    ports:
+      - "5432:5432"
+    volumes:
+      - cart_db_data:/var/lib/postgresql/data
+
+  cart-service:
+    build: .
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      SERVICE_NAME: cart-service
+      DATABASE_URL: postgresql://cart:cart@cart-db:5432/cart?schema=public
+      CATALOG_SERVICE_URL: http://catalog-service:8081
+      INVENTORY_SERVICE_URL: http://inventory-service:8082
+      DOWNSTREAM_TIMEOUT_MS: 1500
+      DOWNSTREAM_RETRY_COUNT: 2
+      DOWNSTREAM_RETRY_BACKOFF_MS: 120
+      CART_TTL_DAYS: 30
+      MAX_LINE_ITEMS: 200
+      LOG_LEVEL: info
+      CORS_ORIGINS: "*"
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX: 300
+    ports:
+      - "8080:8080"
+    depends_on:
+      - cart-db
+
+volumes:
+  cart_db_data:

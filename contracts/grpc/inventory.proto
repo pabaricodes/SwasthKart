@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package swasthkart.inventory.v1;
+
+option java_package = "com.swasthkart.inventory.grpc";
+option java_outer_classname = "InventoryProto";
+
+import "google/protobuf/timestamp.proto";
+
+service InventoryService {
+  // Check stock levels for one or more products
+  rpc CheckStock(CheckStockRequest) returns (CheckStockResponse);
+
+  // Reserve items for a checkout session (stateful, with TTL)
+  rpc ReserveItems(ReserveItemsRequest) returns (ReserveItemsResponse);
+
+  // Confirm a reservation after successful payment
+  rpc ConfirmReservation(ConfirmReservationRequest) returns (ConfirmReservationResponse);
+
+  // Release a reservation on payment failure or timeout
+  rpc ReleaseReservation(ReleaseReservationRequest) returns (ReleaseReservationResponse);
+}
+
+// --- CheckStock ---
+
+message CheckStockRequest {
+  repeated string product_ids = 1; // UUIDs
+}
+
+message CheckStockResponse {
+  repeated StockItem items = 1;
+}
+
+message StockItem {
+  string product_id = 1;
+  string sku = 2;
+  int32 available_qty = 3;
+  bool in_stock = 4;
+}
+
+// --- ReserveItems ---
+
+message ReserveItemsRequest {
+  repeated ReserveLineItem items = 1;
+  int32 ttl_seconds = 2; // Default 600 (10 min)
+}
+
+message ReserveLineItem {
+  string product_id = 1;
+  string sku = 2;
+  int32 quantity = 3;
+}
+
+message ReserveItemsResponse {
+  string reservation_id = 1;
+  ReservationStatus status = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  repeated FailedItem failed_items = 4;
+}
+
+enum ReservationStatus {
+  RESERVATION_STATUS_UNSPECIFIED = 0;
+  HELD = 1;
+  INSUFFICIENT_STOCK = 2;
+}
+
+message FailedItem {
+  string product_id = 1;
+  string sku = 2;
+  int32 available_qty = 3;
+  int32 requested_qty = 4;
+}
+
+// --- ConfirmReservation ---
+
+message ConfirmReservationRequest {
+  string reservation_id = 1;
+}
+
+message ConfirmReservationResponse {
+  ConfirmStatus status = 1;
+}
+
+enum ConfirmStatus {
+  CONFIRM_STATUS_UNSPECIFIED = 0;
+  CONFIRMED = 1;
+  NOT_FOUND = 2;
+  ALREADY_CONFIRMED = 3;
+  EXPIRED = 4;
+}
+
+// --- ReleaseReservation ---
+
+message ReleaseReservationRequest {
+  string reservation_id = 1;
+}
+
+message ReleaseReservationResponse {
+  ReleaseStatus status = 1;
+}
+
+enum ReleaseStatus {
+  RELEASE_STATUS_UNSPECIFIED = 0;
+  RELEASED = 1;
+  RELEASE_NOT_FOUND = 2;
+  ALREADY_RELEASED = 3;
+}

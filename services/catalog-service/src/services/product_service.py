@@ -1,4 +1,5 @@
 from src.repositories.product_repository import ProductRepository
+from fastapi import HTTPException
 
 
 class ProductService:
@@ -15,3 +16,11 @@ class ProductService:
         offset=offset,
      )
      return products, total
+    
+    def get_product(product_id: UUID, db: Session):
+     product = self.repo.get_product_by_id(db, product_id)
+
+     if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+     return product

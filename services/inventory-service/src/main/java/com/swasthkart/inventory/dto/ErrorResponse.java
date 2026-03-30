@@ -1,9 +1,21 @@
 package com.swasthkart.inventory.dto;
 
-import lombok.Builder;
+import java.util.Map;
 
-@Builder
 public record ErrorResponse(
-  String code,
-  String message
-) {}
+    Error error
+) {
+    public record Error(
+        String code,
+        String message,
+        Map<String, Object> details
+    ) {}
+
+    public static ErrorResponse of(String code, String message) {
+        return new ErrorResponse(new Error(code, message, Map.of()));
+    }
+
+    public static ErrorResponse of(String code, String message, Map<String, Object> details) {
+        return new ErrorResponse(new Error(code, message, details));
+    }
+}

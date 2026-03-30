@@ -2,25 +2,28 @@ package com.swasthkart.inventory.api;
 
 import com.swasthkart.inventory.dto.StockResponse;
 import com.swasthkart.inventory.service.InventoryQueryService;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequiredArgsConstructor
-@RequestMapping("/api/v1/inventory")
+@RequestMapping("/v1")
 public class StockController {
 
-  private final InventoryQueryService inventoryQueryService;
+    private final InventoryQueryService inventoryQueryService;
 
-  @GetMapping("/stock")
-  public StockResponse getStock(
-    @RequestParam("skuId") @NotNull UUID skuId,
-    @RequestParam("cityId") @NotBlank String cityId
-  ) {
-    return inventoryQueryService.getStock(skuId, cityId);
-  }
+    public StockController(InventoryQueryService inventoryQueryService) {
+        this.inventoryQueryService = inventoryQueryService;
+    }
+
+    @GetMapping("/stock/{productId}")
+    public StockResponse getStock(@PathVariable UUID productId) {
+        return inventoryQueryService.getStockByProductId(productId);
+    }
+
+    @PostMapping("/stock/batch")
+    public List<StockResponse> getStockBatch(@RequestBody List<UUID> productIds) {
+        return inventoryQueryService.getStockByProductIds(productIds);
+    }
 }

@@ -1,0 +1,48 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  userId            String        @map("user_id") @db.Uuid
+  cartId            String        @map("cart_id") @db.Uuid
+  addressId         String        @map("address_id") @db.Uuid
+  amountPaise       Int           @map("amount_paise")
+  currency          String        @default("INR") @db.VarChar(3)
+  status            PaymentStatus @default(INITIATED)
+  providerRef       String?       @map("provider_ref") @db.VarChar(100)
+  redirectUrl       String?       @map("redirect_url") @db.VarChar(500)
+  webhookReceivedAt DateTime?     @map("webhook_received_at")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  events            PaymentEvent[]
+
+  @@index([userId])
+  @@index([cartId])
+  @@index([status])
+  @@map("payments")
+}
+
+model PaymentEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  paymentId String   @map("payment_id") @db.Uuid
+  eventType String   @map("event_type") @db.VarChar(50)
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("payment_events")
+}

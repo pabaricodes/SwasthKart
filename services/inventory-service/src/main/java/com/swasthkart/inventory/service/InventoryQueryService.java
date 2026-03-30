@@ -1,44 +1,61 @@
 package com.swasthkart.inventory.service;
 
-import com.swasthkart.inventory.domain.DeliveryType;
 import com.swasthkart.inventory.dto.StockResponse;
 import com.swasthkart.inventory.entity.InventoryItem;
 import com.swasthkart.inventory.repo.InventoryItemRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class InventoryQueryService {
 
-  private final InventoryItemRepository inventoryItemRepository;
+    private final InventoryItemRepository inventoryItemRepository;
 
-  public StockResponse getStock(UUID skuId, String cityId) {
-    InventoryItem item = inventoryItemRepository.findById(new com.swasthkart.inventory.entity.InventoryItemKey(skuId, cityId))
-      .orElse(null);
-
-    int available = 0;
-    if (item != null) {
-      available = Math.max(item.getOnHandQty() - item.getReservedQty(), 0);
+    public InventoryQueryService(InventoryItemRepository inventoryItemRepository) {
+        this.inventoryItemRepository = inventoryItemRepository;
     }
 
-    // MVP delivery logic:
-    // - If available > 0 => INSTANT (same-day tag)
-    // - Else => SCHEDULED (earliest date = tomorrow)
-    boolean instant = available > 0;
-    DeliveryType deliveryType = instant ? DeliveryType.INSTANT : DeliveryType.SCHEDULED;
-    LocalDate earliest = instant ? LocalDate.now() : LocalDate.now().plusDays(1);
+    public StockResponse getStockByProductId(UUID productId) {
+        InventoryItem item = inventoryItemRepository.findByProductId(productId).orElse(null);
+        if (item == null) {
+            return StockResponse.builder()
+                    .productId(productId)
+                    .sku("")
+                    .availableQty(0)
+                    .inStock(false)
+                    .build();
+        }
+        return StockResponse.builder()
+                .productId(item.getProductId())
+                .sku(item.getSku())
+                .availableQty(item.getAvailableQty())
+                .inStock(item.getAvailableQty() > 0)
+                .build();
+    }
 
-    return StockResponse.builder()
-      .skuId(skuId)
-      .cityId(cityId)
-      .availableQty(available)
-      .deliveryType(deliveryType)
-      .instant(instant)
-      .earliestDeliveryDate(earliest)
-      .build();
-  }
+    public List<StockResponse> getStockByProductIds(List<UUID> productIds) {
+        List<InventoryItem> items = inventoryItemRepository.findByProductIdIn(productIds);
+        return productIds.stream().<StockResponse>map(pid -> {
+            InventoryItem item = items.stream()
+                    .filter(i -> i.getProductId().equals(pid))
+                    .findFirst()
+                    .orElse(null);
+            if (item == null) {
+                return StockResponse.builder()
+                        .productId(pid)
+                        .sku("")
+                        .availableQty(0)
+                        .inStock(false)
+                        .build();
+            }
+            return StockResponse.builder()
+                    .productId(item.getProductId())
+                    .sku(item.getSku())
+                    .availableQty(item.getAvailableQty())
+                    .inStock(item.getAvailableQty() > 0)
+                    .build();
+        }).toList();
+    }
 }

@@ -1,48 +1,75 @@
-from sqlalchemy import text
-from src.config.database import engine
+import math
+from uuid import UUID
 
-class ProductRepository:
+from sqlalchemy import select, func, or_
+from sqlalchemy.ext.asyncio import AsyncSession
 
- def find_all(self, category=None, dietType=None, limit=20, offset=0):
-    base_query = "FROM products WHERE 1=1"
-    params = {}
+from src.models.product import Product
 
-    if category:
-        base_query += " AND category = :category"
-        params["category"] = category
 
-    if dietType:
-        base_query += " AND diet_type = :dietType"
-        params["dietType"] = dietType
+async def get_by_id(db: AsyncSession, product_id: UUID) -> Product | None:
+    result = await db.execute(
+        select(Product).where(Product.id == product_id, Product.is_active == True)
+    )
+    return result.scalar_one_or_none()
 
-    count_query = "SELECT COUNT(*) " + base_query
-    data_query = "SELECT * " + base_query + " LIMIT :limit OFFSET :offset"
 
-    params["limit"] = limit
-    params["offset"] = offset
+async def list_products(
+    db: AsyncSession,
+    page: int = 1,
+    page_size: int = 20,
+    category_id: UUID | None = None,
+    search: str | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+) -> tuple[list[Product], int]:
+    query = select(Product).where(Product.is_active == True)
 
-    with engine.connect() as conn:
-        total = conn.execute(text(count_query), params).scalar()
-        result = conn.execute(text(data_query), params)
-        rows = result.fetchall()
+    if category_id:
+        query = query.where(Product.category_id == category_id)
 
-        products = []
-        for row in rows:
-            products.append({
-                "productId": row.product_id,
-                "name": row.name,
-                "category": row.category,
-                "productType": row.product_type,
-                "dietType": row.diet_type,
-                "price": row.price,
-                "calories": row.calories,
-                "proteinG": row.protein_g,
-                "carbsG": row.carbs_g,
-                "fatG": row.fat_g,
-                "popularity7dCount": row.popularity_7d_count,
-                "isActive": row.is_active,
-                "createdAt": str(row.created_at),
-            })
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            or_(Product.name.ilike(pattern), Product.brand.ilike(pattern))
+        )
 
-    return products, total
-    
+    # Count total
+    count_query = select(func.count()).select_from(query.subquery())
+    total_count = (await db.execute(count_query)).scalar_one()
+
+    # Sort
+    sort_column = getattr(Product, sort_by, Product.created_at)
+    if sort_order == "asc":
+        query = query.order_by(sort_column.asc())
+    else:
+        query = query.order_by(sort_column.desc())
+
+    # Paginate
+    query = query.offset((page - 1) * page_size).limit(page_size)
+
+    result = await db.execute(query)
+    products = list(result.scalars().all())
+
+    return products, total_count
+
+
+async def create(db: AsyncSession, **kwargs) -> Product:
+    product = Product(**kwargs)
+    db.add(product)
+    await db.commit()
+    await db.refresh(product)
+    return product
+
+
+async def update(db: AsyncSession, product: Product, **kwargs) -> Product:
+    for key, value in kwargs.items():
+        setattr(product, key, value)
+    await db.commit()
+    await db.refresh(product)
+    return product
+
+
+async def delete(db: AsyncSession, product: Product) -> None:
+    await db.delete(product)
+    await db.commit()

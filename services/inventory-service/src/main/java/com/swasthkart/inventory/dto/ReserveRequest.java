@@ -8,13 +8,16 @@ import java.util.List;
 import java.util.UUID;
 
 public record ReserveRequest(
-  UUID userId,
-  @NotNull UUID cartId,
-  @NotBlank String cityId,
-  @NotNull List<Item> items
+    @NotNull List<Item> items,
+    int ttlSeconds
 ) {
-  public record Item(
-    @NotNull UUID skuId,
-    @Min(1) int qty
-  ) {}
+    public record Item(
+        @NotNull UUID productId,
+        @NotBlank String sku,
+        @Min(1) int quantity
+    ) {}
+
+    public int effectiveTtl() {
+        return ttlSeconds > 0 ? ttlSeconds : 600;
+    }
 }

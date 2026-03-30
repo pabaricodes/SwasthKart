@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeliveryStatus {
+  PENDING
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+}
+
+model Delivery {
+  id                  String         @id @default(uuid()) @db.Uuid
+  orderId             String         @unique @map("order_id") @db.Uuid
+  status              DeliveryStatus @default(PENDING)
+  assignedTo          String?        @map("assigned_to") @db.VarChar(100)
+  estimatedDeliveryAt DateTime?      @map("estimated_delivery_at")
+  actualDeliveryAt    DateTime?      @map("actual_delivery_at")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  events              DeliveryEvent[]
+
+  @@index([status])
+  @@map("deliveries")
+}
+
+model DeliveryEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  deliveryId String   @map("delivery_id") @db.Uuid
+  fromStatus String?  @map("from_status") @db.VarChar(20)
+  toStatus   String   @map("to_status") @db.VarChar(20)
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryId])
+  @@map("delivery_events")
+}
