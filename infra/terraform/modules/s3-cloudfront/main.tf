@@ -4,7 +4,12 @@ variable "domain_name" { type = string default = "" }
 variable "acm_certificate_arn" { type = string default = "" }
 
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.project}-${var.environment}-frontend"
+  bucket = "sk-${var.environment}-frontend-assets"
+
+  tags = {
+    Component          = "storage"
+    DataClassification = "public"
+  }
 }
 
 resource "aws_s3_bucket_public_access_block" "frontend" {
@@ -16,7 +21,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 }
 
 resource "aws_cloudfront_origin_access_identity" "frontend" {
-  comment = "${var.project}-${var.environment}-frontend"
+  comment = "sk-${var.environment}-frontend-assets"
 }
 
 data "aws_iam_policy_document" "s3_policy" {
@@ -88,6 +93,11 @@ resource "aws_cloudfront_distribution" "frontend" {
     acm_certificate_arn            = var.acm_certificate_arn != "" ? var.acm_certificate_arn : null
     ssl_support_method             = var.acm_certificate_arn != "" ? "sni-only" : null
     minimum_protocol_version       = "TLSv1.2_2021"
+  }
+
+  tags = {
+    Component          = "cdn"
+    DataClassification = "public"
   }
 }
 

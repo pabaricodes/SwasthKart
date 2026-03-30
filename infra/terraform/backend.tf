@@ -1,9 +1,9 @@
 terraform {
   backend "s3" {
-    bucket         = "swasthkart-terraform-state"
+    bucket         = "sk-terraform-state"
     key            = "terraform.tfstate"
     region         = "ap-south-1"
-    dynamodb_table = "swasthkart-terraform-locks"
+    dynamodb_table = "sk-terraform-locks"
     encrypt        = true
   }
 

@@ -2,17 +2,41 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: identity-db
-  namespace: swasthkart-data
+  namespace: sk-dev-data
+  labels:
+    app.kubernetes.io/name: identity-db
+    app.kubernetes.io/instance: identity-db-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: data
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/identity-service"
+    swasthkart.io/port: "5432"
+    swasthkart.io/dependencies: ""
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   serviceName: identity-db
   replicas: 1
   selector:
     matchLabels:
-      app: identity-db
+      app.kubernetes.io/name: identity-db
+      app.kubernetes.io/instance: identity-db-dev
   template:
     metadata:
       labels:
-        app: identity-db
+        app.kubernetes.io/name: identity-db
+        app.kubernetes.io/instance: identity-db-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: database
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: data
     spec:
       containers:
         - name: postgres
@@ -66,10 +90,20 @@ apiVersion: v1
 kind: Service
 metadata:
   name: identity-db
-  namespace: swasthkart-data
+  namespace: sk-dev-data
+  labels:
+    app.kubernetes.io/name: identity-db
+    app.kubernetes.io/instance: identity-db-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: data
 spec:
   selector:
-    app: identity-db
+    app.kubernetes.io/name: identity-db
+    app.kubernetes.io/instance: identity-db-dev
   ports:
     - port: 5432
       targetPort: 5432

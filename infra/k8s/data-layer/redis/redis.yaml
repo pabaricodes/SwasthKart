@@ -2,17 +2,41 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: redis
-  namespace: swasthkart-data
+  namespace: sk-dev-data
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: redis-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: data
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/redis"
+    swasthkart.io/port: "6379"
+    swasthkart.io/dependencies: ""
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   serviceName: redis
   replicas: 1
   selector:
     matchLabels:
-      app: redis
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: redis-dev
   template:
     metadata:
       labels:
-        app: redis
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/instance: redis-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: cache
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: data
     spec:
       containers:
         - name: redis
@@ -54,10 +78,20 @@ apiVersion: v1
 kind: Service
 metadata:
   name: redis
-  namespace: swasthkart-data
+  namespace: sk-dev-data
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: redis-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: data
 spec:
   selector:
-    app: redis
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: redis-dev
   ports:
     - port: 6379
       targetPort: 6379

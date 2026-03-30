@@ -1,13 +1,13 @@
 variable "project" { type = string }
 variable "services" {
   type    = list(string)
-  default = ["identity-service", "catalog-service", "inventory-service", "cart-service", "payment-service", "order-service", "delivery-service", "bff-gateway"]
+  default = ["identity-svc", "catalog-svc", "inventory-svc", "cart-svc", "payment-svc", "order-svc", "delivery-svc", "bff-gateway", "admin-svc"]
 }
 
 resource "aws_ecr_repository" "services" {
   for_each = toset(var.services)
 
-  name                 = "${var.project}/${each.value}"
+  name                 = "sk/${each.value}"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = false
 
@@ -17,6 +17,11 @@ resource "aws_ecr_repository" "services" {
 
   encryption_configuration {
     encryption_type = "AES256"
+  }
+
+  tags = {
+    Component          = "registry"
+    DataClassification = "internal"
   }
 }
 

@@ -3,15 +3,20 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "swasthkart"
-      Environment = "prod"
-      ManagedBy   = "terraform"
+      Project       = "swasthkart"
+      project-id    = "sk"
+      Environment   = "prod"
+      ManagedBy     = "terraform"
+      Team          = "swasthkart-platform"
+      CostCenter    = "sk-engineering"
+      Owner         = "manan.pabari"
+      Repository    = "swasthkart"
     }
   }
 }
 
 locals {
-  project     = "swasthkart"
+  project     = "sk"
   environment = "prod"
   azs         = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]
 }

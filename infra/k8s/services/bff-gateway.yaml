@@ -2,21 +2,47 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: bff-gateway
-  namespace: swasthkart
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: bff-gateway
+    app.kubernetes.io/instance: bff-gateway-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: edge
+    swasthkart.io/language: typescript
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/bff-gateway"
+    swasthkart.io/port: "3000"
+    swasthkart.io/dependencies: "identity-svc,catalog-svc,inventory-svc,cart-svc,payment-svc,order-svc,delivery-svc"
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: bff-gateway
+      app.kubernetes.io/name: bff-gateway
+      app.kubernetes.io/instance: bff-gateway-dev
   template:
     metadata:
       labels:
-        app: bff-gateway
+        app.kubernetes.io/name: bff-gateway
+        app.kubernetes.io/instance: bff-gateway-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: gateway
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: edge
+        swasthkart.io/language: typescript
     spec:
       serviceAccountName: bff-gateway
       containers:
         - name: bff-gateway
-          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/bff-gateway:latest
+          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/bff-gateway:1.0.0
           ports:
             - containerPort: 3000
           env:
@@ -25,22 +51,22 @@ spec:
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: bff-secrets
+                  name: bff-gateway-credentials
                   key: jwt-secret
             - name: IDENTITY_SERVICE_URL
-              value: "http://identity-service:3001"
+              value: "http://identity-svc:3001"
             - name: CATALOG_SERVICE_URL
-              value: "http://catalog-service:3002"
+              value: "http://catalog-svc:3002"
             - name: INVENTORY_SERVICE_URL
-              value: "http://inventory-service:3003"
+              value: "http://inventory-svc:3003"
             - name: CART_SERVICE_URL
-              value: "http://cart-service:3004"
+              value: "http://cart-svc:3004"
             - name: PAYMENT_SERVICE_URL
-              value: "http://payment-service:3005"
+              value: "http://payment-svc:3005"
             - name: ORDER_SERVICE_URL
-              value: "http://order-service:3006"
+              value: "http://order-svc:3006"
             - name: DELIVERY_SERVICE_URL
-              value: "http://delivery-service:3007"
+              value: "http://delivery-svc:3007"
           livenessProbe:
             httpGet:
               path: /health/live
@@ -65,10 +91,21 @@ apiVersion: v1
 kind: Service
 metadata:
   name: bff-gateway
-  namespace: swasthkart
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: bff-gateway
+    app.kubernetes.io/instance: bff-gateway-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: edge
+    swasthkart.io/language: typescript
 spec:
   selector:
-    app: bff-gateway
+    app.kubernetes.io/name: bff-gateway
+    app.kubernetes.io/instance: bff-gateway-dev
   ports:
     - port: 3000
       targetPort: 3000
@@ -77,13 +114,33 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: bff-gateway
-  namespace: swasthkart
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: bff-gateway
+    app.kubernetes.io/instance: bff-gateway-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: edge
+    swasthkart.io/language: typescript
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: bff-gateway
-  namespace: swasthkart
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: bff-gateway
+    app.kubernetes.io/instance: bff-gateway-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: gateway
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: edge
+    swasthkart.io/language: typescript
 spec:
   scaleTargetRef:
     apiVersion: apps/v1

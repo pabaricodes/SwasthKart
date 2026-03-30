@@ -1,22 +1,48 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: identity-service
-  namespace: swasthkart
+  name: identity-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: identity-svc
+    app.kubernetes.io/instance: identity-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/identity-service"
+    swasthkart.io/port: "3001"
+    swasthkart.io/dependencies: "identity-db"
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: identity-service
+      app.kubernetes.io/name: identity-svc
+      app.kubernetes.io/instance: identity-svc-dev
   template:
     metadata:
       labels:
-        app: identity-service
+        app.kubernetes.io/name: identity-svc
+        app.kubernetes.io/instance: identity-svc-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: backend
+        swasthkart.io/language: typescript
     spec:
-      serviceAccountName: identity-service
+      serviceAccountName: identity-svc
       containers:
-        - name: identity-service
-          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/identity-service:latest
+        - name: identity-svc
+          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/identity-service:1.0.0
           ports:
             - containerPort: 3001
           env:
@@ -25,12 +51,12 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: identity-service-secrets
+                  name: identity-svc-credentials
                   key: database-url
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: identity-service-secrets
+                  name: identity-svc-credentials
                   key: jwt-secret
           livenessProbe:
             httpGet:
@@ -55,11 +81,22 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: identity-service
-  namespace: swasthkart
+  name: identity-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: identity-svc
+    app.kubernetes.io/instance: identity-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 spec:
   selector:
-    app: identity-service
+    app.kubernetes.io/name: identity-svc
+    app.kubernetes.io/instance: identity-svc-dev
   ports:
     - port: 3001
       targetPort: 3001
@@ -67,19 +104,39 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: identity-service
-  namespace: swasthkart
+  name: identity-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: identity-svc
+    app.kubernetes.io/instance: identity-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: identity-service
-  namespace: swasthkart
+  name: identity-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: identity-svc
+    app.kubernetes.io/instance: identity-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: identity-service
+    name: identity-svc
   minReplicas: 2
   maxReplicas: 10
   metrics:

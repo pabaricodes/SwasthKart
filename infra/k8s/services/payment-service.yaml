@@ -1,22 +1,48 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: payment-service
-  namespace: swasthkart
+  name: payment-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: payment-svc
+    app.kubernetes.io/instance: payment-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/payment-service"
+    swasthkart.io/port: "3005"
+    swasthkart.io/dependencies: "payment-db,kafka"
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: payment-service
+      app.kubernetes.io/name: payment-svc
+      app.kubernetes.io/instance: payment-svc-dev
   template:
     metadata:
       labels:
-        app: payment-service
+        app.kubernetes.io/name: payment-svc
+        app.kubernetes.io/instance: payment-svc-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: backend
+        swasthkart.io/language: typescript
     spec:
-      serviceAccountName: payment-service
+      serviceAccountName: payment-svc
       containers:
-        - name: payment-service
-          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/payment-service:latest
+        - name: payment-svc
+          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/payment-service:1.0.0
           ports:
             - containerPort: 3005
           env:
@@ -25,10 +51,10 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: payment-service-secrets
+                  name: payment-svc-credentials
                   key: database-url
             - name: KAFKA_BROKERS
-              value: "kafka-0.kafka.swasthkart-data:9092,kafka-1.kafka.swasthkart-data:9092,kafka-2.kafka.swasthkart-data:9092"
+              value: "kafka-0.kafka.sk-dev-data:9092,kafka-1.kafka.sk-dev-data:9092,kafka-2.kafka.sk-dev-data:9092"
             - name: BFF_BASE_URL
               value: "http://bff-gateway:3000"
           livenessProbe:
@@ -54,11 +80,22 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: payment-service
-  namespace: swasthkart
+  name: payment-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: payment-svc
+    app.kubernetes.io/instance: payment-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 spec:
   selector:
-    app: payment-service
+    app.kubernetes.io/name: payment-svc
+    app.kubernetes.io/instance: payment-svc-dev
   ports:
     - port: 3005
       targetPort: 3005
@@ -66,19 +103,39 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: payment-service
-  namespace: swasthkart
+  name: payment-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: payment-svc
+    app.kubernetes.io/instance: payment-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: payment-service
-  namespace: swasthkart
+  name: payment-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: payment-svc
+    app.kubernetes.io/instance: payment-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: payment-service
+    name: payment-svc
   minReplicas: 2
   maxReplicas: 10
   metrics:

@@ -8,11 +8,12 @@ variable "node_max_size" { type = number default = 10 }
 variable "node_desired_size" { type = number default = 3 }
 
 locals {
-  cluster_name = "${var.project}-${var.environment}"
+  name_prefix  = "${var.project}-${var.environment}"
+  cluster_name = "${local.name_prefix}-cluster"
 }
 
 resource "aws_iam_role" "cluster" {
-  name = "${local.cluster_name}-cluster-role"
+  name = "${local.name_prefix}-role-eks-cluster"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -21,6 +22,10 @@ resource "aws_iam_role" "cluster" {
       Principal = { Service = "eks.amazonaws.com" }
     }]
   })
+
+  tags = {
+    Component = "compute"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "cluster_policy" {
@@ -39,11 +44,15 @@ resource "aws_eks_cluster" "main" {
     endpoint_public_access  = true
   }
 
+  tags = {
+    Component = "compute"
+  }
+
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
 }
 
 resource "aws_iam_role" "node_group" {
-  name = "${local.cluster_name}-node-role"
+  name = "${local.name_prefix}-role-eks-node"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -52,6 +61,10 @@ resource "aws_iam_role" "node_group" {
       Principal = { Service = "ec2.amazonaws.com" }
     }]
   })
+
+  tags = {
+    Component = "compute"
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "node_worker" {
@@ -71,7 +84,7 @@ resource "aws_iam_role_policy_attachment" "node_ecr" {
 
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${local.cluster_name}-nodes"
+  node_group_name = "${local.name_prefix}-nodegroup-general"
   node_role_arn   = aws_iam_role.node_group.arn
   subnet_ids      = var.private_subnet_ids
   instance_types  = var.node_instance_types
@@ -80,6 +93,10 @@ resource "aws_eks_node_group" "main" {
     desired_size = var.node_desired_size
     max_size     = var.node_max_size
     min_size     = var.node_min_size
+  }
+
+  tags = {
+    Component = "compute"
   }
 
   depends_on = [

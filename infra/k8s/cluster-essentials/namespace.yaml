@@ -1,13 +1,25 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: swasthkart
+  name: sk-dev
   labels:
+    app.kubernetes.io/name: sk-dev
+    app.kubernetes.io/instance: sk-dev
+    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: swasthkart-data
+  name: sk-dev-data
   labels:
+    app.kubernetes.io/name: sk-dev-data
+    app.kubernetes.io/instance: sk-dev-data
+    app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: data

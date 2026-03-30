@@ -1,22 +1,48 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: cart-service
-  namespace: swasthkart
+  name: cart-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: cart-svc
+    app.kubernetes.io/instance: cart-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/cart-service"
+    swasthkart.io/port: "3004"
+    swasthkart.io/dependencies: "cart-db,redis,inventory-svc,catalog-svc"
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: cart-service
+      app.kubernetes.io/name: cart-svc
+      app.kubernetes.io/instance: cart-svc-dev
   template:
     metadata:
       labels:
-        app: cart-service
+        app.kubernetes.io/name: cart-svc
+        app.kubernetes.io/instance: cart-svc-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: backend
+        swasthkart.io/language: typescript
     spec:
-      serviceAccountName: cart-service
+      serviceAccountName: cart-svc
       containers:
-        - name: cart-service
-          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/cart-service:latest
+        - name: cart-svc
+          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/cart-service:1.0.0
           ports:
             - containerPort: 3004
           env:
@@ -25,14 +51,14 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: cart-service-secrets
+                  name: cart-svc-credentials
                   key: database-url
             - name: INVENTORY_GRPC_HOST
-              value: "inventory-service"
+              value: "inventory-svc"
             - name: INVENTORY_GRPC_PORT
               value: "50051"
             - name: CATALOG_SERVICE_URL
-              value: "http://catalog-service:3002"
+              value: "http://catalog-svc:3002"
           livenessProbe:
             httpGet:
               path: /health/live
@@ -56,11 +82,22 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: cart-service
-  namespace: swasthkart
+  name: cart-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: cart-svc
+    app.kubernetes.io/instance: cart-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 spec:
   selector:
-    app: cart-service
+    app.kubernetes.io/name: cart-svc
+    app.kubernetes.io/instance: cart-svc-dev
   ports:
     - port: 3004
       targetPort: 3004
@@ -68,19 +105,39 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: cart-service
-  namespace: swasthkart
+  name: cart-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: cart-svc
+    app.kubernetes.io/instance: cart-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: cart-service
-  namespace: swasthkart
+  name: cart-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: cart-svc
+    app.kubernetes.io/instance: cart-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: typescript
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: cart-service
+    name: cart-svc
   minReplicas: 2
   maxReplicas: 10
   metrics:

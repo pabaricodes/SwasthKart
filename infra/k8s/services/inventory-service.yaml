@@ -1,22 +1,48 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: inventory-service
-  namespace: swasthkart
+  name: inventory-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: inventory-svc
+    app.kubernetes.io/instance: inventory-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: java
+  annotations:
+    swasthkart.io/owner: "manan.pabari"
+    swasthkart.io/repo: "services/inventory-service"
+    swasthkart.io/port: "3003"
+    swasthkart.io/dependencies: "inventory-db"
+    swasthkart.io/health-live: "/health/live"
+    swasthkart.io/health-ready: "/health/ready"
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: inventory-service
+      app.kubernetes.io/name: inventory-svc
+      app.kubernetes.io/instance: inventory-svc-dev
   template:
     metadata:
       labels:
-        app: inventory-service
+        app.kubernetes.io/name: inventory-svc
+        app.kubernetes.io/instance: inventory-svc-dev
+        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: swasthkart
+        app.kubernetes.io/managed-by: kubectl
+        swasthkart.io/team: platform
+        swasthkart.io/tier: backend
+        swasthkart.io/language: java
     spec:
-      serviceAccountName: inventory-service
+      serviceAccountName: inventory-svc
       containers:
-        - name: inventory-service
-          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/inventory-service:latest
+        - name: inventory-svc
+          image: ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/swasthkart/inventory-service:1.0.0
           ports:
             - containerPort: 3003
               name: http
@@ -26,7 +52,7 @@ spec:
             - name: SPRING_DATASOURCE_URL
               valueFrom:
                 secretKeyRef:
-                  name: inventory-service-secrets
+                  name: inventory-svc-credentials
                   key: database-url
           livenessProbe:
             httpGet:
@@ -51,11 +77,22 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: inventory-service
-  namespace: swasthkart
+  name: inventory-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: inventory-svc
+    app.kubernetes.io/instance: inventory-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: java
 spec:
   selector:
-    app: inventory-service
+    app.kubernetes.io/name: inventory-svc
+    app.kubernetes.io/instance: inventory-svc-dev
   ports:
     - name: http
       port: 3003
@@ -67,19 +104,39 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: inventory-service
-  namespace: swasthkart
+  name: inventory-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: inventory-svc
+    app.kubernetes.io/instance: inventory-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: java
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: inventory-service
-  namespace: swasthkart
+  name: inventory-svc
+  namespace: sk-dev
+  labels:
+    app.kubernetes.io/name: inventory-svc
+    app.kubernetes.io/instance: inventory-svc-dev
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: swasthkart
+    app.kubernetes.io/managed-by: kubectl
+    swasthkart.io/team: platform
+    swasthkart.io/tier: backend
+    swasthkart.io/language: java
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: inventory-service
+    name: inventory-svc
   minReplicas: 2
   maxReplicas: 10
   metrics:
